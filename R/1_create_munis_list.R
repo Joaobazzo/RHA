@@ -5,7 +5,8 @@
 library(magrittr)
 library(data.table)
 library(geobr)
-library(mapview)
+library(sidrar)
+#library(mapview)
 library(readr)
 rm(list=ls())
 gc(reset=T)
@@ -28,11 +29,22 @@ data.table::setDT(munis_df)
 munis_df <- munis_df[code_intermediate %in% unique(my_rgint$RG_Cod),]
 munis_df[,code_intermediate := as.character(code_intermediate)]
 
+
+my_rgint_dt[mun_bsf > 0 ,bacia := "BSF"]
+my_rgint_dt[mun_pisf > 0,bacia := "PISF"]
+my_rgint_dt[mun_bpar > 0,bacia := "BPAR"]
+my_rgint_dt[mun_bpar > 0 & mun_pisf > 0,bacia := "BPAR & PISF"]
+my_rgint_dt[mun_bpar > 0 &  mun_bsf > 0,bacia := "BPAR & BSF"]
+my_rgint_dt[mun_bpar > 0 & mun_pisf > 0,bacia := "BSF & PISF"]
+my_rgint_dt[mun_bpar > 0 & mun_bsf > 0 & mun_pisf > 0,bacia := "BSF & PISF & BPAR"]
+table(my_rgint_dt$bacia)
+
 ## 2.1) RGINT & city -----
 munis_df1 <- data.table::merge.data.table(
   , x = munis_df
   , y = my_rgint_dt[,.SD,.SDcols = c("codigo_municipio_completo",
-                                     "regiao_geografica_intermediaria")]
+                                     "regiao_geografica_intermediaria"
+                                     ,"bacia")]
   , by.y = "regiao_geografica_intermediaria"
   , by.x = "code_intermediate"
   , all.x = TRUE
@@ -41,7 +53,7 @@ munis_df1 <- data.table::merge.data.table(
 data.table::setnames(x = munis_df1
                      ,old = "codigo_municipio_completo"
                      ,new = "code_muni")
-munis_df1[1]
+
 
 ## 2.2) City -----
 
@@ -80,7 +92,7 @@ popcenso <- lapply(c(1991, 2000, 2010),function(i){
 sidrar::info_sidra(x = 6579)
 pop_6579 <- sidrar::get_sidra(x = 6579
                               , variable = 9324
-                              , period = as.character(c(2020))
+                              , period = "2020"
                               , geo = "City")
 
 # fix names
@@ -91,9 +103,10 @@ pop2020 <- data.table::copy(pop_6579)[municipio_codigo %in% unique(munis_df1$cod
 
 # Merge -----
 
-munis_list <- list("intermediate_region" = munis_df1,
-                   "municipality" = munis_df2,
-                   "pop_censo" = popcenso,
-                   "pop_proj" = pop2020)
+munis_list <- list("intermediate_region" = munis_df1
+                   ,"municipality" = munis_df2
+                   ,"pop_censo" = popcenso
+                   #,"pop_proj" = pop2020
+                   )
 
 readr::write_rds(munis_list,"data/munis_list.rds",compress="gz")
