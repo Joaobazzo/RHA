@@ -1,0 +1,79 @@
+---
+output: word_document
+params:
+  f_name_intermediate: NA
+  f_code_intermediate: NA
+  f_pop_2020_rgint: NA
+  f_prop_urb_2010_rgint: NA
+  f_number_muni: NA
+  f_number_rgi: NA
+  fdt_prop_muni: NA
+  fdt_pop_rgi_sit: NA
+---
+
+```{r, include = FALSE}
+library(ggplot2)
+library(knitr)
+library(data.table)
+library(magrittr)
+library(flextable)
+knitr::opts_chunk$set(
+  echo = FALSE, fig.width = 10, fig.height = 7, warning = FALSE
+  ,tab.cap.pre = "Tabela"
+)
+```
+
+# *3.1 População*
+
+
+Em 2020, a população estimada da RGINT de `r params$f_name_intermediate` foi de `r params$f_pop_2020_rgint` habitantes, sendo `r params$f_prop_urb_2010_rgint` urbana em 2010.
+
+```{r plot_pop, fig.cap = "Crescimento populacional conforme situação do município."}
+knitr::include_graphics(path = sprintf("../../figures/pop_situacao_rgint/%s.jpg"
+                                       ,params$f_code_intermediate))
+```
+
+A RGINT DE `r params$f_name_intermediate` CONTÉM `r params$f_number_rgi` RGIs e `r params$f_number_muni` municípios.
+
+```{r num_muni, tab.cap = 'Número de municípios e regiões imediatas conforme proporção da população urbana.', tab.id='flextable'}
+if(require("flextable")){
+  flextable::set_flextable_defaults(
+    font.size = 8
+    ,font.family = "Arial"
+    ,font.color = "black"
+    ,background.color = "white"
+  )
+  ft <- flextable::flextable(data = params$fdt_prop_muni)
+  #ft <- flextable::color(ft, color = "lightgrey")
+  ft <- flextable::fontsize(ft, size = 8, part = "all")
+  ft <- flextable::set_table_properties(x = ft, layout = "autofit")
+  ft <- flextable::align(ft,align = "center", part = "all")
+  ft <- flextable::autofit(ft)
+  ft
+}
+```
+
+```{r muni_cap, tab.cap = 'Número de municípios e regiões imediatas conforme situação do domicílio.', tab.id='flextable'}
+if(require("flextable")){
+  flextable::set_flextable_defaults(
+    font.size = 8
+    ,font.family = "Arial"
+    ,font.color = "black"
+  )
+  ft <- flextable::flextable(data = params$fdt_pop_rgi_sit)
+  ft <- flextable::fontsize(ft, size = 8, part = "all")
+  ft <- flextable::set_table_properties(x = ft, layout = "autofit")
+  ft <- flextable::align(ft,align = "center", part = "all")
+  ft <- flextable::autofit(ft)
+  ft
+}
+```
+
+
+A pirâmide etária conforme sexo é mostrada a seguir.
+
+
+```{r plot_piram_etaria, fig.cap = "Estrutura etária conforme sexo e faixa de idade."}
+knitr::include_graphics(path = sprintf("../../figures/estrutura_etaria_sexo_rgint/%s.jpg"
+                                       ,params$f_code_intermediate))
+```

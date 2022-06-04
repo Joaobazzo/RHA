@@ -1,4 +1,15 @@
 
+
+
+
+# 999 fazer:::
+- fazer por bacia
+- ordenar por produto (ProdBase)
+- inserir VCR, valor exportação, ICM (Indice Complexidade do Municipio)
+- Ver onde estão os dados acima 
+- add potencialidade/fragilidade
+- fazer templante PIB
+- 
 # load libraries ----
 
 rm(list=ls())
@@ -14,10 +25,7 @@ library(patchwork)
 # read -----
 munis_list <- readr::read_rds("data/munis_list.rds")
 munis_list$municipality[,code_muni := as.character(code_muni)]
-munis_df <- munis_list$intermediate_region
-munis_df[munis_list$municipality
-         ,on = "code_muni"
-         ,name_muni := i.name_muni]
+
 
 
 muni_cmplx <- data.table::fread("data-raw/Municipio/ListaProdutos_Municipio.csv")
@@ -26,36 +34,43 @@ muni_cmplx[,Municipio := as.character(Municipio)]
 
 # join ----
 
-muni_join <- data.table::copy(muni_cmplx)[
-  munis_df
-  , on = c("Municipio"= "code_muni")
-  , ":="(
-    bacia = i.bacia
-    , name_muni = i.name_muni
-    , code_intermediate = i.code_intermediate
-    , geometry = i.geom
-  )]
-muni_join <- muni_join[!is.na(bacia),]
+ muni_join <- data.table::copy(muni_cmplx)[
+   munis_list$municipality
+   , on = c("Municipio" = "code_muni")
+   , name_muni := i.name_muni]
+muni_join <- muni_join[!is.na(name_muni)]
 
 # list order
 
-
 lista_icpdiv <- data.table::copy(muni_join)[
-  order(ICPDiv,decreasing = T)
-  ,.SD[1:3]
-  ,by = .(GrupoBase,bacia)
+  ,{
+    order_ICPDiv <- order(ICPDiv,decreasing = T)[1:5]
+    list(
+      "RegiaoIntermediaria" = RegiaoIntermediaria[order_ICPDiv]
+      ,"RegiaoImediata"     = RegiaoImediata[order_ICPDiv]
+      ,"code_muni"          = Municipio[order_ICPDiv]
+      ,"name_muni"          = name_muni[order_ICPDiv]
+      ,"Cod_Grupo_Base"     = ProdBase[1]
+      ,"Rank_Produto_Base"  = 1:3
+      ,"Nome_Grupo_Base"    = GrupoBase[order_ICPDiv]
+      ,"Nome_Produto_Base"  = NomeBase[order_ICPDiv]
+      ,"ICP_Base"           = format(ICPBase[order_ICPDiv],dec=",")
+      ,"Phi"                = format(Phi[order_ICPDiv],dec=",")
+      ,"ICPDiv"             = format(ICPDiv[order_ICPDiv],dec=",")
+      ,"Cor_Grupo_Div"      = ProdDiv[order_ICPDiv]
+      ,"Nome_Grupo_Div"     = GrupoDiv[order_ICPDiv]
+      ,"Nome_Produto_Div"   = NomeDiv[order_ICPDiv]
+    )
+  }
+  ,by = .(ProdBase)
 ]
-lista_icpdiv[,!c("NomeDiv","NomeBase")]
-lista_icpdiv[,c("GrupoBase","name_muni","Municipio","bacia")]
 
-#lista_prodiv <-  data.table::copy(muni_join)[
-#  order(ProdDiv,decreasing = T)
-#  ,.SD[1:2]
-#  ,by =  .(GrupoBase,bacia)
-#]
-#
-#lista_icpdiv[,!c("NomeDiv","NomeBase")]
-#lista_prodiv[,!c("NomeDiv","NomeBase")]
+lista_icpdiv[1:3]
+lista_icpdiv %>% View()
+# save xlsx ----
+openxlsx::write.xlsx(x = lista_icpdiv
+                     ,file = "data/rank_ICPdiv_por_ProdBase.xlsx"
+                     ,overwrite = TRUE)
 
 # simple map
 
@@ -72,8 +87,8 @@ for(i in seq_along(list_group)){
     geom_sf(data = map_sf[map_sf$bacia == "BSF",]
             ,color = 'black',fill=NA)+
     labs(subtitle = fifelse(i == 7
-                           ,"Artigo de Pedra\n e outros metais"
-                           ,list_group[i]))+
+                            ,"Artigo de Pedra\n e outros metais"
+                            ,list_group[i]))+
     theme_void()
 }
 p[[7]]

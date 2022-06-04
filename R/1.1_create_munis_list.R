@@ -44,7 +44,9 @@ munis_df1 <- data.table::merge.data.table(
   , x = munis_df
   , y = my_rgint_dt[,.SD,.SDcols = c("codigo_municipio_completo",
                                      "regiao_geografica_intermediaria"
-                                     ,"bacia")]
+                                     ,"bacia"
+                                     ,"regiao_geografica_imediata"
+                                     ,"nome_regiao_geografica_imediata")]
   , by.y = "regiao_geografica_intermediaria"
   , by.x = "code_intermediate"
   , all.x = TRUE
@@ -71,7 +73,7 @@ uniqueN(munis_df1$code_state)
 # Tabela 202 - População residente, por sexo e situação do domicílio
 info2020 <- sidrar::info_sidra(x = 202)
 ### download CENSUS
-popcenso <- lapply(c(1991, 2000, 2010),function(i){
+popcenso_br <- lapply(c(1991, 2000, 2010),function(i){
   message(i)
   pop202 <- sidrar::get_sidra(x = 202
                               , variable = 93
@@ -83,30 +85,51 @@ popcenso <- lapply(c(1991, 2000, 2010),function(i){
   data.table::setDT(pop202)
   names(pop202) <- janitor::make_clean_names(names(pop202))
   
-  tmp_pop <- data.table::copy(pop202)[municipio_codigo %in% unique(munis_df1$code_muni),]
-  return(tmp_pop)
+  return(pop202)
 }) %>% data.table::rbindlist()
+
+#  merge with other infos
+popcenso_br[munis_df1
+            , on = c("municipio_codigo" = "code_muni")
+            , ":="(
+              code_intermediate = i.code_intermediate
+              ,name_intermediate = i.name_intermediate
+              ,code_imediate = i.regiao_geografica_imediata
+              ,name_imediate = i.nome_regiao_geografica_imediata
+            )]
+
+popcenso <- data.table::copy(popcenso_all) %>% 
+  .[municipio_codigo %in% unique(munis_df1$code_muni)]
 
 ## 2.4) Pop projection---------
 
 sidrar::info_sidra(x = 6579)
-pop_6579 <- sidrar::get_sidra(x = 6579
+pop_proj_br <- readRDS("../ubanformbr/data/table_6579_ibge.rds")
+pop_proj_br <- sidrar::get_sidra(x = 6579
                               , variable = 9324
-                              , period = "2020"
+                              , period = "2019"
                               , geo = "City")
 
-# fix names
-data.table::setDT(pop_6579)
-names(pop_6579) <- janitor::make_clean_names(names(pop_6579))
+# merge
+pop_proj_br[munis_df1
+            , on = c("municipio_codigo" = "code_muni")
+            , ":="(
+              code_intermediate = i.code_intermediate
+              ,name_intermediate = i.name_intermediate
+              ,code_imediate = i.regiao_geografica_imediata
+              ,name_imediate = i.nome_regiao_geografica_imediata
+            )]
 
-pop2020 <- data.table::copy(pop_6579)[municipio_codigo %in% unique(munis_df1$code_muni),]
+pop_proj <- data.table::copy(pop_proj_br) %>% 
+  .[municipio_codigo %in% unique(munis_df1$code_muni)]
 
 # Merge -----
 
 munis_list <- list("intermediate_region" = munis_df1
                    ,"municipality" = munis_df2
-                   ,"pop_censo" = popcenso
-                   #,"pop_proj" = pop2020
-                   )
+                   ,"pop_censo_br" = popcenso_br
+                   ,"pop_censo_pj" = popcenso
+                   ,"pop_2020_br" = pop_proj_br
+                   ,"pop_2020_pj" = pop_proj)
 
 readr::write_rds(munis_list,"data/munis_list.rds",compress="gz")
