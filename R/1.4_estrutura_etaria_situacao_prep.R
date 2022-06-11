@@ -1,15 +1,15 @@
 
 # load packages -----
 
-
+rm(list=ls())
+gc(reset=T)
 library(magrittr)
 library(data.table)
 library(geobr)
 library(sidrar)
 #library(mapview)
 library(readr)
-rm(list=ls())
-gc(reset=T)
+
 
 # 1) read_data ------
 all_rgint <- geobr::read_intermediate_region(simplified = T)
@@ -37,7 +37,7 @@ my_rgint_dt[mun_bpar > 0 & mun_pisf > 0,bacia := "BPAR & PISF"]
 my_rgint_dt[mun_bpar > 0 &  mun_bsf > 0,bacia := "BPAR & BSF"]
 my_rgint_dt[mun_bpar > 0 & mun_pisf > 0,bacia := "BSF & PISF"]
 my_rgint_dt[mun_bpar > 0 & mun_bsf > 0 & mun_pisf > 0,bacia := "BSF & PISF & BPAR"]
-table(my_rgint_dt$bacia)
+table(my_rgint_dt$bacia,exclude = FALSE)
 
 ## 2.1) RGINT & city -----
 munis_df1 <- data.table::merge.data.table(
@@ -51,9 +51,10 @@ munis_df1 <- data.table::merge.data.table(
   , by.x = "code_intermediate"
   , all.x = TRUE
   , all.y = FALSE)
+
 # Tabela 6579 - População residente estimada
 # Tabela 202 - População residente, por sexo e situação do domicílio
-info2020 <- sidrar::info_sidra(x = 1419)
+info2020 <- sidrar::info_sidra(x = 1378)
 
 
 VecLoop <- c(21,22,23,24,25,26,27,28,29,31,32,52,53)
@@ -65,18 +66,18 @@ popList <- lapply(VecLoop,function(i){
                               , variable = 93
                               , period = "2010"
                               , geo = rep("City",1)
-                              , classific = c("c287","c2")
-                              , category = list(c(93070,93084 # faixa idade
-                                                  ,93085,107453
-                                                  ,111286,93087
-                                                  ,93088,93089
-                                                  ,93090,93091
-                                                  ,93092,93093
-                                                  ,93094,93095
-                                                  ,93096,93097
-                                                  ,93098,93099
-                                                  ,93100)
-                                                ,c(4,5) # homem/mulher
+                              , classific = c("c1","c287")
+                              , category = list(c(1,2) # urbana rural
+                                                ,c(93070,93084 # faixa idade
+                                                   ,93085,107453
+                                                   ,111286,93087
+                                                   ,93088,93089
+                                                   ,93090,93091
+                                                   ,93092,93093
+                                                   ,93094,93095
+                                                   ,93096,93097
+                                                   ,93098,93099
+                                                   ,93100)
                               )
                               , geo.filter = list("State" = i)
   )
@@ -98,7 +99,10 @@ popList1[munis_df1
            ,bacia = i.bacia
          )]
 
+
+popList1
 # save-----
+dir.create("data")
 readr::write_rds(x = popList1
-                 ,file = "data/IBGE_estrutura_etaria.rds"
+                 ,file = "data/IBGE_estrutura_etaria_situacao_domicilio.rds"
                  ,compress = "gz")
