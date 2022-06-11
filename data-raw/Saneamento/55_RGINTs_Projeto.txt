@@ -1,0 +1,56 @@
+RG_Cod;RG_Nome
+3113;Divinópolis
+3103;Teófilo Otoni
+3110;Uberaba
+3108;Varginha
+3104;Governador Valadares
+3107;Barbacena
+3101;Belo Horizonte
+3112;Patos de Minas
+3102;Montes Claros
+3202;São Mateus
+3203;Colatina
+5206;Luziânia - Águas Lindas de Goiás
+5301;Distrito Federal
+2301;Fortaleza
+2303;Iguatu
+2304;Juazeiro do Norte
+2302;Quixadá
+2401;Natal
+2402;Caicó
+2403;Mossoró
+2502;Campina Grande
+2501;João Pessoa
+2601;Recife
+2604;Petrolina
+2602;Caruaru
+2702;Arapiraca
+2105;Imperatriz
+2103;Caxias
+2101;São Luís
+2102;Santa Inês - Bacabal
+2104;Presidente Dutra
+2203;Picos
+2201;Teresina
+2205;Corrente - Bom Jesus
+2204;São Raimundo Nonato
+2206;Floriano
+2202;Parnaíba
+2306;Sobral
+2305;Crateús
+2503;Patos
+2504;Sousa - Cajazeiras
+2603;Serra Talhada
+2701;Maceió
+2801;Aracaju
+2802;Itabaiana
+2904;Vitória da Conquista
+2909;Paulo Afonso
+2901;Salvador
+2910;Feira de Santana
+2903;Ilhéus de Itabuna
+2902;Santo Antônio de Jesus
+2907;Irecê
+2908;Juazeiro
+2906;Barreiras
+2905;Guanambi
