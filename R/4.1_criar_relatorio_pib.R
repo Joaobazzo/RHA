@@ -22,27 +22,122 @@ function_rel_pop <- function(arquivo_resultado,s_input){
     )
   }
   
-  raw_rgint <- data.table::copy(input_file$intermediate_region)[
+  tmp_rgint <- data.table::copy(input_file$intermediate_region)[
     code_intermediate %in% as.character(s_input)
     ,
   ] 
   
-  raw_pop_censo_pj <- data.table::copy(input_file$pop_censo_pj)[
-    municipio_codigo %in% as.character(unique(raw_rgint$code_muni))
+  tmp_pop_censo_pj <- data.table::copy(input_file$pop_censo_pj)[
+    municipio_codigo %in% as.character(unique(tmp_rgint$code_muni))
     ,
   ]
   
-  raw_pop_2020_pj <- data.table::copy(input_file$pop_2020_pj)[
-    municipio_codigo %in% as.character(unique(raw_rgint$code_muni))
+  tmp_pop_projection_pj <- data.table::copy(pop_raw)[
+    municipio_codigo %in% as.character(unique(tmp_rgint$code_muni))
     ,
   ]
   
-  raw_pib <- data.table::copy(pib_raw)[
-    municipio_codigo %in% as.character(unique(raw_rgint$code_muni))
+  tmp_pib <- data.table::copy(pib_raw)[
+    municipio_codigo %in% as.character(unique(tmp_rgint$code_muni))
     ,
   ]
   
   # 3) Argument data -----
+   ## p4) Pib per capita----------------
+  
+  tmp_pop_rgi <- data.table::copy(pop_raw) %>% 
+    .[ano == 2019,]
+  
+  tmp_pib_rgi <- data.table::copy(pib_raw) %>% 
+    .[variavel != "Produto Interno Bruto a preços correntes",] %>% 
+    .[variavel != "Impostos, líquidos de subsídios, sobre produtos a preços correntes",] %>% 
+    #.[variavel != "Valor adicionado bruto a preços correntes total",] %>% 
+    .[variavel %like% "preços correntes total", variavel := "PIB"] %>% 
+    .[variavel %like% "agropecuária", variavel := "Agro."] %>% 
+    .[variavel %like% "dos serviços,", variavel := "Serv."] %>% 
+    .[variavel %like% "da administração,", variavel := "Adm."] %>% 
+    .[variavel %like% "da indústria", variavel := "Ind."] %>% 
+    .[ano == 2019,]
+  
+  # merge
+  tmp_pib_rgi[tmp_pop_rgi
+                , on = c("ano","municipio_codigo","code_intermediate")
+                , ":="( population = i.valor)]
+  # add state
+  tmp_pib_rgi[,abbrev_state := stringr::str_sub(string = municipio
+                                                ,start = nchar(municipio)-1
+                                                ,end = nchar(municipio))]
+  
+  tmp_pib_rgi[capitais_raw,on = "abbrev_state"
+              ,":=" (name_state = i.name_state,
+                     code_state = i.code_state)]
+
+  s_state <- unique(tmp_pib_rgi[code_intermediate == s_input,]$name_state)
+  s_code_capital <- capitais_raw[name_state == s_state,code_muni]
+  
+  # remove NA, such as ano == 2002
+  tmp_pib_rgi <- tmp_pib_rgi[!is.na(population)]
+  
+  tmp_pib_rgi_bind <- 
+    list(
+      tmp_pib_rgi[code_intermediate %in% s_input,       ] %>% 
+        .[,local_id := code_imediate] %>% 
+        .[,name_local := name_imediate] %>% 
+        .[,local := "Região Imediata"]
+      ,tmp_pib_rgi[code_intermediate %in% s_input,      ] %>% 
+        .[,local_id := code_intermediate] %>% 
+        .[,name_local := name_intermediate] %>% 
+        .[,local := "Região Intermediária"]
+      ,tmp_pib_rgi[municipio_codigo %in% s_code_capital,] %>% 
+        .[,local_id := municipio_codigo] %>% 
+        .[,name_local := municipio] %>% 
+        .[,local := "Capital"]
+      ,tmp_pib_rgi[name_state %in% s_state,] %>% 
+        .[,local_id := code_state] %>% 
+        .[,name_local := name_state] %>% 
+        .[,local := "Estado"]
+    ) %>% data.table::rbindlist()
+  
+  tmp_pib_local <-  data.table::dcast.data.table(
+    data = tmp_pib_rgi_bind
+    ,formula =   ano + local + local_id + name_local + code_intermediate + code_imediate + municipio_codigo + population~ variavel
+    ,value.var = "valor"
+    #,fun.aggregate = sum
+  ) 
+
+  # arruma colunas e calcula percentuais
+  tmp_pib_cap_rgint <- data.table::copy(tmp_pib_local) %>% 
+    .[,{
+      
+      sum_pop <- sum(population,na.rm = TRUE)
+      sum_adm <- sum(`Adm.`,na.rm = TRUE)   / sum(PIB, na.rm = TRUE)
+      sum_agr <- sum(`Agro.`,na.rm = TRUE)  / sum(PIB, na.rm = TRUE)
+      sum_ind <- sum(`Ind.`,na.rm = TRUE)   / sum(PIB, na.rm = TRUE)
+      sum_serv <- sum(`Serv.`,na.rm = TRUE) / sum(PIB, na.rm = TRUE)
+      p_adm <- (100 * sum_adm) %>% round(1) %>% format(.,dec = ",")
+      p_agr <- (100 * sum_agr) %>% round(1) %>% format(.,dec = ",")
+      p_ind <- (100 * sum_ind) %>% round(1) %>% format(.,dec = ",")
+      p_serv <- (100 * sum_serv) %>% round(1) %>% format(.,dec = ",")
+      pib_capita <- sum(PIB, na.rm = TRUE) / sum_pop
+      
+      list(
+        name_local = name_local
+        ,PIB = sum(PIB, na.rm = TRUE)
+        ,pp_PIB = 100
+        ,pp_ind = p_ind
+        ,pp_serv = p_serv
+        ,pp_agr = p_agr
+        ,pp_adm = p_adm
+        ,pib_capita = pib_capita
+      )
+    }
+    ,by = .(ano,name_local,local_id)]
+  
+  tmp_pib_cap_rgint[1:5]
+  ## p5) pib munis in rgint ----
+  s_pib_muni <- data.table::copy(my_pib_rgint) %>% 
+    .[ano == 2019,]
+  
   ## p1) Name Reg. intermediate----
   s_name_intermediate = unique(raw_rgint$name_intermediate)
   
@@ -87,17 +182,6 @@ function_rel_pop <- function(arquivo_resultado,s_input){
     format(.,dec = ",") %>% paste0(.,"%")
   s_percent_pib_rgint
   
-  
-  ## p4) Pib per capita----
-  s_pib_rgint <- data.table::copy(raw_pop_2020_pj) %>% 
-    .[]
-  
-  ## p5) pib munis in rgint ----
-  s_pib_muni <- data.table::copy(my_pib_rgint) %>% 
-    .[ano == 2019,]
-  
-  ## p6) pib RGI in RGINT -----
-  s_number_rgi_above_rgint <- data.table::copy(my_pib_rgint)
   
   ## p7) VAB ----
   ### a) VAB | 2019 ----
@@ -261,7 +345,8 @@ function_rel_pop <- function(arquivo_resultado,s_input){
 input_file <- readr::read_rds("data/munis_list.rds")
 vector_unique_code <- unique(input_file$intermediate_region$code_intermediate)
 pib_raw <- readr::read_rds("data/pib_total_prep.rds")
-
+pop_raw <- readr::read_rds("data/pop_proj_total_prep.rds")
+capitais_raw <- readr::read_rds("data/capitais.rds")
 
 lapply(seq_along(vector_unique_code)
        ,function(i){
