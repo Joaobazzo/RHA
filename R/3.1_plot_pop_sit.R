@@ -33,7 +33,7 @@ make_plot <- function(sigla_input,sigla_name){
   
   pop_br2 <- data.table::melt(data = pop_br1
                               ,id.vars = c("situacao_do_domicilio","ano")
-                              ,measure.vars = c("pop","prop"))
+                              ,measure.vars = c("pop"))
   # condition population size
   pop_br2[,value_pop := data.table::fifelse(test = (variable == "pop") & (max(value) > 900000)
                                         ,yes = value / (10^6)
@@ -45,8 +45,8 @@ make_plot <- function(sigla_input,sigla_name){
                                     ,"População total (mil)")
   #
   pop_br2[,variable_f := factor(variable
-                                ,levels = c("pop","prop")
-                                ,labels = c("População","Proporção (%)"))]
+                                ,levels = c("pop")
+                                ,labels = c("População"))]
   
   pop_br2
   plot_pop <- ggplot(data = pop_br2) +

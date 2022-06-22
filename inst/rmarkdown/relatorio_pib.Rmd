@@ -1,0 +1,113 @@
+---
+output: 
+  officedown::rdocx_document: default
+params:
+  f_name_intermediate: NA              # f1        s_input  
+  f_code_intermediate: NA              # f2        s_name_intermediate  
+  f_name_estado: NA                    # f13       s_name_estado   
+  f_pib_2019_rgint_num: NA             # f3        s_pib_rgint_num  
+  f_pib_2019_rgint_str: NA             # f4        s_pib_rgint_str  
+  f_prop_pib_est_num: NA               # f5        s_pib_razao_rgint
+  f_pib_cap_2019_rgint: NA             # f6        s_pib_capita_rgint
+  f_class_pib_rgint_ind: NA            # f7.1      s_class_pib_cap_rgint_ind indústria
+  f_class_pib_rgint_serv: NA           # f7.2      s_class_pib_cap_rgint_serv indústria
+  f_class_pib_rgint_agr: NA            # f7.3      s_class_pib_cap_rgint_agr indústria
+  f_class_pib_rgint_adm: NA            # f7.4      s_class_pib_cap_rgint_adm indústria
+  f_class_pib_cap_rgint: NA            # f8        s_class_pib_cap_rgint
+  fdt_referencia_pib_cap: NA           # f9        sq_ref_pib_cap 
+  fdt_referencia_pib: NA               # f10       sq_ref_pib    
+  f_name_capital_estado: NA            # f12       s_code_capital
+  fdt_num_muni_destaque: NA            # f13       sq_num_muni_destaque 
+---
+
+```{r, include = FALSE}
+library(ggplot2)
+library(knitr)
+library(data.table)
+library(magrittr)
+library(flextable)
+library(officedown)
+library(officer)
+knitr::opts_chunk$set(
+  echo = FALSE
+  , font.size = 12
+  , warning = FALSE
+  , italic = FALSE
+  , tab.cap.pre = "Tabela "
+  , fig.cap.pre = "Figura "
+)
+```
+
+# *3.2 PRODUTO INTERNO BRUTO (PIB) E VALOR ADICIONADO BRUTO (VAB)*
+
+Em 2019, o Produto Interno Bruto (PIB) da RGINT de `r params$f_name_intermediate` (`r params$f_code_intermediate`) foi de `r params$f_pib_2019_rgint_num` (`r params$f_pib_2019_rgint_str`), correspondendo a `r params$f_prop_pib_est_num` do PIB do Estado (`r params$f_name_estado`). Os dados de Valor Adicionado Bruto (VAB) mostram a seguinte ordem de relevância por setor:  Indústria (`r params$f_class_pib_rgint_ind`), Serviços (`r params$f_class_pib_rgint_serv`), Agropecuária (`r params$f_class_pib_rgint_agr`), e Administração Pública (`r params$f_class_pib_rgint_adm`) --- conforme a Tabela de referência \@ref(tab:tab2).
+
+Com relação ao PIB per capita, o valor é de `r params$f_pib_cap_2019_rgint` mil reais por habitante, sendo classificado por relevância `r params$f_class_pib_cap_rgint` --- a partir os limites de referência mostrados na Tabela \@ref(tab:tab3).
+
+
+A Figura \@ref(fig:fig1) ilustra a evolução do PIB na RGINT de `r params$f_name_intermediate`, e a Tabela \@ref(tab:tab1)
+mostra as características gerais das regiões intermediárias que compõe a referida RGINT.
+
+```{r plot_f_code_intermediate}
+#| fig.cap = "Evolução do PIB por setor.",
+#| fig.height = 5,
+#| fig.id='fig1'
+knitr::include_graphics(path = sprintf("../../figures/pib_vab/%s.jpg"
+                                       ,params$f_code_intermediate))
+```
+
+```{r fdt_num_muni_destaque}
+#| tab.cap = 'RGIs pertences a região intermediária.',
+#| tab.id = 'tab1'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_num_muni_destaque)
+ft <- flextable::fontsize(ft, size = 8, part = "all")
+ft <- flextable::set_table_properties(x = ft, layout = "fixed")
+ft <- flextable::align(ft,align = "center", part = "all")
+ft <- flextable::autofit(ft)
+ft
+```
+
+
+
+
+```{r fdt_referencia_pib}
+#| tab.cap = 'Valores de referência para PIB.',
+#| tab.id = 'tab2'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_referencia_pib)
+ft <- flextable::fontsize(ft, size = 8, part = "all")
+ft <- flextable::set_table_properties(x = ft, layout = "fixed")
+ft <- flextable::align(ft,align = "center", part = "all")
+ft <- flextable::autofit(ft)
+ft
+```
+
+```{r fdt_referencia_pib_cap}
+#| tab.cap = 'Valores de referência para PIB per capita',
+#| tab.id = 'tab3'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_referencia_pib_cap)
+ft <- flextable::fontsize(ft, size = 8, part = "all")
+ft <- flextable::set_table_properties(x = ft, layout = "fixed")
+ft <- flextable::align(ft,align = "center", part = "all")
+ft <- flextable::autofit(ft)
+ft
+```
+
+

@@ -195,6 +195,36 @@ function_rel_pop <- function(arquivo_resultado,s_input){
                                 ,"Rural (%)","Urbana (%)"))
   dt_pop_rgi_join
   
+  # quadro referencia ------
+  l1 <- c("Classificação"
+          ,"Pop. Estimada (2020)"
+          ,"Pop. Rural (2010)"
+          ,"% Pop. Rural (2010)"
+          ,"Pop. Urbana (2010)"
+          ,"% Pop. Urbana (2010)")
+  lbaixo <- c("Baixo"
+              ,"< 8573"
+              ,"< 2.482"
+              ,"< 27,7"
+              ,"< 4.624"
+              ,"< 57,9")
+  lmedio <- c("Médio"
+              ,"8.573 - 15.622"
+              ,"2.482 - 4.336 "
+              ,"27,7 - 42,1  "
+              ,"4.624 - 8.732 "
+              ,"57,9 - 72,3  ")
+  lalto <- c("Alto",
+             " > 15.622"   
+             ," > 4.336 "   
+             ," > 42,1  "
+             ," > 8.732 "  
+             ," > 72,3  ")
+  sq_ref <- do.call(rbind,list(lbaixo,lmedio,lalto))
+  sq_ref <- as.data.frame(sq_ref)
+  names(sq_ref) <- l1
+  sq_ref
+  
   # 4) Check -----
   s_name_intermediate
   s_input
@@ -204,13 +234,14 @@ function_rel_pop <- function(arquivo_resultado,s_input){
   s_number_rgi
   dt_prop_muni
   dt_pop_rgi_join
+  sq_ref
   
   # 5) Function -----
   rmarkdown::render(
     input = "inst/rmarkdown/relatorio_pop.Rmd"
     , output_file = arquivo_resultado
     , params = list(
-       f_name_intermediate    = s_name_intermediate
+      f_name_intermediate    = s_name_intermediate
       ,f_code_intermediate   = s_input
       ,f_pop_2020_rgint      = s_pop_2020_rgint
       ,f_prop_urb_2010_rgint = s_prop_urb_2010_rgint
@@ -218,6 +249,7 @@ function_rel_pop <- function(arquivo_resultado,s_input){
       ,f_number_rgi          = s_number_rgi
       ,fdt_prop_muni         = dt_prop_muni
       ,fdt_pop_rgi_sit       = dt_pop_rgi_join
+      ,fdt_quadro_ref        = sq_ref
     )
     ,quiet = TRUE
   )
@@ -240,7 +272,7 @@ lapply(seq_along(vector_unique_code)
          # a) prepare names -----
          code_input <- vector_unique_code[i]
          
-         file.copy(from = "inst/rmarkdown/relatorio_pop/modelo_pop.docx"
+         file.copy(from = "inst/rmarkdown/relatorio_pop.docx"
                    ,to = sprintf("inst/rmarkdown/relatorio_pop/%s.docx",code_input)
          )
          

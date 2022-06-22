@@ -1,5 +1,6 @@
 ---
-output: word_document
+output: 
+  officedown::rdocx_document: default
 params:
   f_name_intermediate: NA
   f_code_intermediate: NA
@@ -9,6 +10,7 @@ params:
   f_number_rgi: NA
   fdt_prop_muni: NA
   fdt_pop_rgi_sit: NA
+  fdt_quadro_ref: NA
 ---
 
 ```{r, include = FALSE}
@@ -17,63 +19,90 @@ library(knitr)
 library(data.table)
 library(magrittr)
 library(flextable)
+library(officedown)
+library(officer)
 knitr::opts_chunk$set(
-  echo = FALSE, fig.width = 10, fig.height = 7, warning = FALSE
-  ,tab.cap.pre = "Tabela"
+  echo = FALSE
+  , font.size = 12
+  , warning = FALSE
+  , italic = FALSE
+  , tab.cap.pre = "Tabela "
+  , fig.cap.pre = "Figura "
 )
 ```
 
 # *3.1 População*
 
 
-Em 2020, a população estimada da RGINT de `r params$f_name_intermediate` foi de `r params$f_pop_2020_rgint` habitantes, sendo `r params$f_prop_urb_2010_rgint` urbana em 2010.
+Em 2020, a população estimada da RGINT de `r params$f_name_intermediate` foi de `r params$f_pop_2020_rgint` habitantes, sendo `r params$f_prop_urb_2010_rgint` urbana em 2010. A seguir, a Figura \@ref(fig:fig1) ilustra o crescimento populacional conforme situação do domicílio.
 
-```{r plot_pop, fig.cap = "Crescimento populacional conforme situação do município."}
+```{r}
+#| fig.cap = "Crescimento populacional conforme situação do município.",
+#| fig.width = 5, 
+#| fig.height = 5, 
+#| fig.id='fig1'
 knitr::include_graphics(path = sprintf("../../figures/pop_situacao_rgint/%s.jpg"
                                        ,params$f_code_intermediate))
 ```
 
-A RGINT DE `r params$f_name_intermediate` CONTÉM `r params$f_number_rgi` RGIs e `r params$f_number_muni` municípios.
+A RGINT de `r params$f_name_intermediate` conta com `r params$f_number_rgi` regiões intermediárias e `r params$f_number_muni` municípios. A Tabela \@ref(tab:tab1) resume o número de municípios conforme proporção em situação urbana.
 
-```{r num_muni, tab.cap = 'Número de municípios e regiões imediatas conforme proporção da população urbana.', tab.id='flextable'}
-if(require("flextable")){
-  flextable::set_flextable_defaults(
-    font.size = 8
-    ,font.family = "Arial"
-    ,font.color = "black"
-    ,background.color = "white"
-  )
-  ft <- flextable::flextable(data = params$fdt_prop_muni)
-  #ft <- flextable::color(ft, color = "lightgrey")
-  ft <- flextable::fontsize(ft, size = 8, part = "all")
-  ft <- flextable::set_table_properties(x = ft, layout = "autofit")
-  ft <- flextable::align(ft,align = "center", part = "all")
-  ft <- flextable::autofit(ft)
-  ft
-}
+```{r num_muni}
+#| tab.cap = 'Número de municípios e regiões imediatas conforme proporção da população urbana.',
+#|  tab.id='tab1'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_prop_muni)
+#ft <- flextable::color(ft, color = "lightgrey")
+ft <- flextable::fontsize(ft, size = 8, part = "all")
+ft <- flextable::set_table_properties(x = ft, layout = "fixed")
+ft <- flextable::align(ft,align = "center", part = "all")
+ft <- flextable::autofit(ft)
+ft
+
 ```
 
-```{r muni_cap, tab.cap = 'Número de municípios e regiões imediatas conforme situação do domicílio.', tab.id='flextable'}
-if(require("flextable")){
-  flextable::set_flextable_defaults(
-    font.size = 8
-    ,font.family = "Arial"
-    ,font.color = "black"
-  )
-  ft <- flextable::flextable(data = params$fdt_pop_rgi_sit)
-  ft <- flextable::fontsize(ft, size = 8, part = "all")
-  ft <- flextable::set_table_properties(x = ft, layout = "autofit")
-  ft <- flextable::align(ft,align = "center", part = "all")
-  ft <- flextable::autofit(ft)
-  ft
-}
+A Tabela \@ref(tab:tab2) apresenta lista das regiões imediatas da RGINT de `r params$f_name_intermediate`.
+
+```{r muni_cap}
+#| tab.cap = 'Número de municípios e regiões imediatas conforme situação do domicílio.',
+#| tab.id='tab2'
+
+ft <- flextable::flextable(data = params$fdt_pop_rgi_sit)
+ft <- flextable::fontsize(ft, size = 8, part = "all")
+ft <- flextable::set_table_properties(x = ft, layout = "autofit")
+ft <- flextable::align(ft,align = "center", part = "all")
+ft <- flextable::autofit(ft)
+ft
+
 ```
 
 
-A pirâmide etária conforme sexo é mostrada a seguir.
+A pirâmide etária conforme sexo é mostrada na Figura \@ref(fig:fig2).
 
 
-```{r plot_piram_etaria, fig.cap = "Estrutura etária conforme sexo e faixa de idade."}
+```{r plot_piram_etaria}
+#| fig.cap = "Estrutura etária conforme sexo e faixa de idade.",
+#| fig.height = 5,
+#| fig.id='fig2'
 knitr::include_graphics(path = sprintf("../../figures/estrutura_etaria_sexo_rgint/%s.jpg"
                                        ,params$f_code_intermediate))
+```
+
+A classificação dos municípios conforme população é mostrada na Tabela \@ref(tab:tab3).
+
+```{r quadro_referencia}
+#| tab.cap = 'Classificação dos municípios conforme tamanho de população.',
+#| tab.id='tab3'
+
+ft <- flextable::flextable(data = params$fdt_quadro_ref)
+ft <- flextable::fontsize(ft, size = 8, part = "all")
+ft <- flextable::set_table_properties(x = ft, layout = "fixed")
+ft <- flextable::align(ft,align = "center", part = "all")
+ft <- flextable::autofit(ft)
+ft
 ```

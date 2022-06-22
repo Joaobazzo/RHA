@@ -66,6 +66,7 @@ make_plot <- function(sigla_input,sigla_name){
   pib_br2[tipo_vab == "Valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social"
           , tipo_vab_f := "VAB administração"]
   
+
   plot_pop <- ggplot(data = pib_br2) +
     geom_bar(stat = "identity",
              aes(x = ano
@@ -107,10 +108,11 @@ my_sigla_input <- unique(input_file$intermediate_region$code_intermediate)
 my_sigla_name <-  unique(input_file$intermediate_region$name_intermediate)
 
 
-lapply(seq_along(my_sigla_name)[1], function(i){
+lapply(seq_along(my_sigla_name), function(i){
   make_plot(sigla_input = my_sigla_input[i]
             ,sigla_name = my_sigla_name[i])
 })
+
 # exclude files
 list_files_pop <- list.files("figures/pib_vab/",full.names = TRUE)
 unlink(x = list_files_pop)
