@@ -11,7 +11,7 @@ library(magrittr)
 
 function_rel_pop <- function(arquivo_resultado,s_input){
   
-  formato_bonitinho <- function(vetor_numerico) {
+  formato_bonitinho_pop <- function(vetor_numerico) {
     formatC(
       vetor_numerico,
       format = "d",

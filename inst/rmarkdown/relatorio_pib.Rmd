@@ -2,9 +2,19 @@
 output: 
   officedown::rdocx_document: default
 params:
+  # INTRO
   f_name_intermediate: NA              # f1        s_input  
   f_code_intermediate: NA              # f2        s_name_intermediate  
   f_name_estado: NA                    # f13       s_name_estado   
+  # POP
+  f_pop_2020_rgint: NA                 # fp1      s_pop_2020_rgint     
+  f_prop_urb_2010_rgint: NA            # fp2      s_prop_urb_2010_rgint
+  f_number_muni: NA                    # fp3      s_number_muni        
+  f_number_rgi: NA                     # fp4      s_number_rgi         
+  fdt_prop_muni: NA                    # fp5      dt_prop_muni         
+  fdt_pop_rgi_sit: NA                  # fp6      dt_pop_rgi_join      
+  fdt_quadro_ref: NA                   # fp7      sq_ref               
+  # PIB
   f_pib_2019_rgint_num: NA             # f3        s_pib_rgint_num  
   f_pib_2019_rgint_str: NA             # f4        s_pib_rgint_str  
   f_prop_pib_est_num: NA               # f5        s_pib_razao_rgint
@@ -18,6 +28,37 @@ params:
   fdt_referencia_pib: NA               # f10       sq_ref_pib    
   f_name_capital_estado: NA            # f12       s_code_capital
   fdt_num_muni_destaque: NA            # f13       sq_num_muni_destaque 
+  # IVS and IDHM
+  f_num_muni_rgint: NA                 # f14       s_num_muni_rgint       
+  fdt_num_renda_din: NA                # f15       sq_num_renda_din       
+  fdt_ivs_idh: NA                      # f16       sq_ivs_idh             
+  f_min_muni_idhm_num: NA              # f17       s_min_muni_idhm_num        
+  f_max_muni_idhm_num: NA              # f18       s_max_muni_idhm_num        
+  f_min_muni_idhm_nme: NA              # f19       s_min_muni_idhm_nme        
+  f_max_muni_idhm_nme: NA              # f20       s_max_muni_idhm_nme        
+  f_min_muni_ivs_num: NA               # f21       s_min_muni_ivs_num         
+  f_max_muni_ivs_num: NA               # f22       s_max_muni_ivs_num         
+  f_min_muni_ivs_nme: NA               # f23       s_min_muni_ivs_nme         
+  f_max_muni_ivs_nme: NA               # f24       s_max_muni_ivs_nme         
+  f_class_max_muni_idhm : NA           # f25       s_class_max_muni_idhm      
+  f_class_min_muni_idhm : NA           # f26       s_class_min_muni_idhm      
+  f_class_max_muni_ivs  : NA           # f27       s_class_max_muni_ivs       
+  f_class_min_muni_ivs  : NA           # f28       s_class_min_muni_ivs       
+  fdt_muni_idh_ivs: NA                 # f29       tmp_f27       
+   # destaques
+  fdt_big_pib: NA                      # f30  sq_big_pib                      
+  fdt_big_pib_cap: NA                  # f31  sq_big_pib_cap                
+  fdt_big_pib_area: NA                 # f32  sq_big_pib_area                  
+  fdt_top_vab: NA                      # f33  sq_top_vab    
+  # empregos
+  fdt_jobs_total: NA                   # f34   sdt_jobs_total                 
+  fdt_rem_total: NA                    # f35   sdt_rem_total                   
+  fdt_num_total_vinculo500: NA         # f36   sdt_num_total_vinculo500         
+  fdt_num_total_vinculo100_499: NA     # f37   sdt_num_total_vinculo100_499     
+  fdt_num_total_vinculo50_99: NA       # f38   sdt_num_total_vinculo50_99       
+  fdt_num_total_vinculo20_49: NA       # f39   sdt_num_total_vinculo20_49       
+  fdt_num_total_vinculo10_19: NA       # f40   sdt_num_total_vinculo10_19       
+  fdt_num_total_vinculo1_9: NA         # f41   sdt_num_total_vinculo1_9                                     
 ---
 
 ```{r, include = FALSE}
@@ -36,13 +77,104 @@ knitr::opts_chunk$set(
   , tab.cap.pre = "Tabela "
   , fig.cap.pre = "Figura "
 )
+
+my_border_theme <- function(x){
+  if (!inherits(x, "flextable")) {
+    stop("theme_vanilla supports only flextable objects.")
+  }
+  std_b <- fp_border(width = 2, color = "black")
+  thin_b <- fp_border(width = 0.5, color = "black")
+  x <- border_remove(x)
+  x <- fontsize(x, size = 7, part = "all")
+  x <- border_inner(x, border = thin_b,part = "all")
+  x <- border_outer(x, border = thin_b,part = "all")
+  x <- hline(x, border = thin_b, part = "all")
+  x <- hline_top(x, border = std_b, part = "header")
+  x <- hline_bottom(x, border = std_b, part = "header")
+  x <- hline_bottom(x, border = std_b, part = "body")
+  x <- bold(x, bold = TRUE, part = "header")
+  x <- align_text_col(x, align = "left", header = TRUE)
+  x <- align_nottext_col(x, align = "right", header = TRUE)
+  x <- set_table_properties(x , layout = "autofit")
+  x <- align(x,align = "center", part = "all")
+  x <- autofit(x) 
+  
+  fix_border_issues(x)
+}
+```
+
+# *3.1 População*
+
+
+Em 2020, a população estimada da RGINT de `r params$f_name_intermediate` foi de `r params$f_pop_2020_rgint` habitantes, sendo `r params$f_prop_urb_2010_rgint` urbana em 2010. A seguir, a Figura \@ref(fig:fig001) ilustra o crescimento populacional conforme situação do domicílio.
+
+```{r}
+#| fig.cap = "Crescimento populacional conforme situação do município.",
+#| fig.width = 5, 
+#| fig.height = 5, 
+#| fig.id='fig001'
+knitr::include_graphics(path = sprintf("../../figures/pop_situacao_rgint/%s.jpg"
+                                       ,params$f_code_intermediate))
+```
+
+A RGINT de `r params$f_name_intermediate` conta com `r params$f_number_rgi` regiões intermediárias e `r params$f_number_muni` municípios. A Tabela \@ref(tab:tab001) resume o número de municípios conforme proporção em situação urbana.
+
+```{r num_muni}
+#| tab.cap = 'Número de municípios e regiões imediatas conforme proporção da população urbana.',
+#|  tab.id='tab001'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_prop_muni) %>% 
+  my_border_theme()  %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
+ft
+```
+
+A Tabela \@ref(tab:tab002) apresenta lista das regiões imediatas da RGINT de `r params$f_name_intermediate`.
+
+```{r muni_cap}
+#| tab.cap = 'Número de municípios e regiões imediatas conforme situação do domicílio.',
+#| tab.id='tab002'
+
+ft <- flextable::flextable(data = params$fdt_pop_rgi_sit)%>% 
+  my_border_theme()  %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
+ft
+```
+
+
+A pirâmide etária conforme sexo é mostrada na Figura \@ref(fig:fig002).
+
+
+```{r plot_piram_etaria}
+#| fig.cap = "Estrutura etária conforme sexo e faixa de idade.",
+#| fig.height = 5,
+#| fig.id='fig002'
+knitr::include_graphics(path = sprintf("../../figures/estrutura_etaria_sexo_rgint/%s.jpg"
+                                       ,params$f_code_intermediate))
+```
+
+A classificação dos municípios conforme população é mostrada na Tabela \@ref(tab:tab003).
+
+```{r quadro_referencia}
+#| tab.cap = 'Classificação dos municípios conforme tamanho de população.',
+#| tab.id='tab003'
+
+ft <- flextable::flextable(data = params$fdt_quadro_ref) %>% 
+  my_border_theme()  %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
+ft
 ```
 
 # *3.2 PRODUTO INTERNO BRUTO (PIB) E VALOR ADICIONADO BRUTO (VAB)*
 
 Em 2019, o Produto Interno Bruto (PIB) da RGINT de `r params$f_name_intermediate` (`r params$f_code_intermediate`) foi de `r params$f_pib_2019_rgint_num` (`r params$f_pib_2019_rgint_str`), correspondendo a `r params$f_prop_pib_est_num` do PIB do Estado (`r params$f_name_estado`). Os dados de Valor Adicionado Bruto (VAB) mostram a seguinte ordem de relevância por setor:  Indústria (`r params$f_class_pib_rgint_ind`), Serviços (`r params$f_class_pib_rgint_serv`), Agropecuária (`r params$f_class_pib_rgint_agr`), e Administração Pública (`r params$f_class_pib_rgint_adm`) --- conforme a Tabela de referência \@ref(tab:tab2).
 
-Com relação ao PIB per capita, o valor é de `r params$f_pib_cap_2019_rgint` mil reais por habitante, sendo classificado por relevância `r params$f_class_pib_cap_rgint` --- a partir os limites de referência mostrados na Tabela \@ref(tab:tab3).
+Com relação ao PIB per capita, o valor é de `r params$f_pib_cap_2019_rgint` mil reais por habitante, sendo classificado por relevância `r params$f_class_pib_cap_rgint` --- a partir os limites de referência mostrados na Tabela \@ref(tab:tab3). 
 
 
 A Figura \@ref(fig:fig1) ilustra a evolução do PIB na RGINT de `r params$f_name_intermediate`, e a Tabela \@ref(tab:tab1)
@@ -65,11 +197,9 @@ flextable::set_flextable_defaults(
   ,font.family = "Arial"
   ,font.color = "black"
 )
-ft <- flextable::flextable(data = params$fdt_num_muni_destaque)
-ft <- flextable::fontsize(ft, size = 8, part = "all")
-ft <- flextable::set_table_properties(x = ft, layout = "fixed")
-ft <- flextable::align(ft,align = "center", part = "all")
-ft <- flextable::autofit(ft)
+ft <- flextable::flextable(data = params$fdt_num_muni_destaque) %>% 
+  my_border_theme()  %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
 ft
 ```
 
@@ -85,11 +215,9 @@ flextable::set_flextable_defaults(
   ,font.family = "Arial"
   ,font.color = "black"
 )
-ft <- flextable::flextable(data = params$fdt_referencia_pib)
-ft <- flextable::fontsize(ft, size = 8, part = "all")
-ft <- flextable::set_table_properties(x = ft, layout = "fixed")
-ft <- flextable::align(ft,align = "center", part = "all")
-ft <- flextable::autofit(ft)
+ft <- flextable::flextable(data = params$fdt_referencia_pib) %>% 
+  my_border_theme() %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
 ft
 ```
 
@@ -102,12 +230,355 @@ flextable::set_flextable_defaults(
   ,font.family = "Arial"
   ,font.color = "black"
 )
-ft <- flextable::flextable(data = params$fdt_referencia_pib_cap)
-ft <- flextable::fontsize(ft, size = 8, part = "all")
-ft <- flextable::set_table_properties(x = ft, layout = "fixed")
-ft <- flextable::align(ft,align = "center", part = "all")
-ft <- flextable::autofit(ft)
+ft <- flextable::flextable(data = params$fdt_referencia_pib_cap) %>% 
+  my_border_theme()  %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
 ft
 ```
 
+# 3.3 Tipologia PNDR e Desenvolvimento Humano 
 
+Nessa seção, a tipologia sub-regional da Política Nacional de Desenvolvimento Regional(PNDR) é apresentada para os municípios da RGINT, bem como os dados de Índice de Vulnerabilidade Social (IVS) e Índice de Desenvolvimento Humano (IDH-M). A tipologia PNDR apresenta um referencial para a classificação das desigualdades regionais brasileiras, propondo, para tanto, dois indicadores de desigualdade: um de renda e outro econômico. Tais indicadores contêm informações das rendas per capita média, e taxa de crescimento geométrico do PIB per capita^[Mais informações em: MI/SDR - MINISTÉRIO DA INTEGRAÇÃO NACIONAL/SECRETARIA DE DESENVOLVIMENTO REGIONAL. Nota Técnica n° 52 - CGMA/DPDR/SDR/MI de 30 de novembro de 2017. Tipologia Sub-regional da Política Nacional de Desenvolvimento Regional (PNDR). Disponível em: https://www.gov.br/sudene/pt-br/centrais-de-conteudo/nt522017-pdf].
+A seguir, na Tabela \@ref(tab:tab4) são apresentadas as classificações de Dinamismo e Renda para os `r params$f_num_muni_rgint` municípios da  RGINT `r params$f_name_intermediate`, com base na referida metodologia.
+
+```{r }
+#| tab.cap = 'Número de municípios da RGINT conforme classificação da PNDR.',
+#| tab.id = 'tab4'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_num_renda_din) %>% 
+  my_border_theme() %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
+ft
+```
+
+Em 2010, o Índice de Vulnerabilidade Social (IVS) dos municípios da RGINT variava de `r params$f_min_muni_ivs_num` ('`r params$f_class_min_muni_ivs`' vulnerabilidade, município de `r params$f_min_muni_ivs_nme`) a `r params$f_max_muni_ivs_num` ('`r params$f_class_max_muni_ivs`' vulnerabilidade, município de `r params$f_max_muni_ivs_nme`), enquanto o Índice de Desenvolvimento Humano (IDH-M) variava de `r params$f_min_muni_idhm_num` ('`r params$f_class_min_muni_idhm`' IDH, município de `r params$f_min_muni_idhm_nme`) a `r params$f_max_muni_idhm_num` ('`r params$f_class_max_muni_idhm`' IDH, município de `r params$f_max_muni_idhm_nme`). A classificação dos índices de desenvolvimento humano e de vulnerabilidade é apresentado na Tabela \@ref(tab:tab5).
+
+```{r }
+#| tab.cap = 'Classificação dos valores de IDH-M (2010) e IVS (2010).',
+#| tab.id = 'tab5'
+
+flextable::set_flextable_defaults(
+  font.size = 8
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_ivs_idh) %>% 
+  my_border_theme() %>% 
+  flextable::set_table_properties(x = ., layout = "fixed") 
+ft
+```
+
+A Tabela \@ref(tab:tab6) resume as principais informações dos municípios da RGINT `r params$f_name_intermediate` conforme população, situação de domicílio, IDH-M, IVS, e classificação PNDR.
+
+```{r }
+#| tab.cap = 'Dados demográficos e sociais.',
+#| tab.id = 'tab6'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_muni_idh_ivs) %>% 
+  my_border_theme() %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+ft
+```
+
+# 3.5 Potencialidades e Fragilidades
+
+
+```{r }
+#| tab.cap = 'Potencialidades ao Desenvolvimento Econômico.',
+#| tab.id = 'tab7'
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+l01 <- c("Variável"        ,"Indicador"                                    ,"Resultado conforme Critério","Descrição | Observação")
+l02 <- c("Localização"     ,"Figura/Mapa"                                  ,""                           ,"")
+l03 <- c(""                ,"Semiárido"                                    ,""                           ,"")
+l04 <- c("Rural"           ,"População Rural"                              ,""                           ,"")
+l05 <- c("Urbana"          ,"População Urbana"                             ,""                           ,"")
+l06 <- c("Faixa Etária"    ,"Idade da População"                           ,"Concentração (%)"           ,"")
+l07 <- c("Aspectos Sociais","IVS"                                          ,""                           ,"")
+l08 <- c(""                ,"IDH"                                          ,""                           ,"")
+l09 <- c("Renda"           ,"PIB per capita"                               ,""                           ,"")
+l10 <- c( "Dinamismo"      ,"Predominância dos municípios - Tipologia PNDR",""                           ,"")
+l11 <- c( "Produção"       , "VAB Industria "                              ,""                           ,"")
+l12 <- c(" "               ,"VAB Serviços"                                 ,""                           ,"")
+l13 <- c(" "               ,"VAB Agropecuária"                             ,""                           ,"")
+l14 <- c(" "               ,"VAB Adm. Pública"                             ,""                           ,"")
+ldt1 <- do.call(rbind,list(l02,l03,l04,l05,l06,l07,l08,l09,l10,l11,l12,l13,l14))
+ldt1 <- as.data.frame(ldt1)
+names(ldt1) <- l01
+
+ft <- flextable::flextable(data = ldt1) %>% 
+  flextable::merge_at(x = .,i = 1:2  , j = 1) %>% 
+  flextable::merge_at(x = .,i = 6:7  , j = 1) %>% 
+  flextable::merge_at(x = .,i = 10:13, j = 1) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+ft
+```
+
+```{r }
+#| tab.cap = 'Fragilidades para Desenvolvimento Econômico.',
+#| tab.id = 'tab8'
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = ldt1) %>% 
+  flextable::merge_at(x = .,i = 1:2  , j = 1) %>% 
+  flextable::merge_at(x = .,i = 6:7  , j = 1) %>% 
+  flextable::merge_at(x = .,i = 10:13, j = 1) %>% 
+  my_border_theme(x = .)
+ft
+```
+
+# 4. Destaques Econômicos da RGINT
+
+## 4.1 Destaques PIB, VAB, PIB per capita
+
+Conforme o PIB, entre os municípios dessa RGINT se destacam:
+```{r }
+#| tab.cap = 'Municípios com maiores PIB.',
+#| tab.id = 'tab9'
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_big_pib) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+ft
+```
+
+Conforme o PIB per capita, entre os municípios dessa RGINT se destacam:
+```{r }
+#| tab.cap = 'Municípios com maiores PIB per capita.',
+#| tab.id = 'tab10'
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_big_pib_cap) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+ft
+```
+Conforme a Densidade Econômica PIB/Km2, entre os municípios dessa RGINT se destacam:
+```{r }
+#| tab.cap = 'Municípios com maiores densidade econômica.',
+#| tab.id = 'tab11'
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+ft <- flextable::flextable(data = params$fdt_big_pib_area) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+ft
+```
+
+Conforme participação percentual do VAB, os destaques setoriais são:
+```{r }
+#| tab.cap = 'Cinco municípios com os maiores VAB conforme setor.',
+#| tab.id = 'tab12'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_top_vab)) %>% 
+  my_border_theme(x = .) 
+
+
+ft
+```
+## 4.2 Destaques emprego, renda e empresas
+
+Os destaques de atividades afins à especialização inteligente tiveram suas classes destacadas nos quadros das 20 atividades que contêm o maior número de empregos e maior remuneração (RAIS, 2020). São atividades que se relacionam com a indústria da transformação, serviços e tecnologia da informação e comunicação ou CT\&I, com turismo, com infraestrutura, serviços especializados, serviços técnicos, serviços administrativos e serviços financeiros. 
+
+ADICIONAR TABELA GERAL
+## 4.2.1 Empregos e Remuneração
+
+
+```{r }
+#| tab.cap = 'Dez maiores atividades, em termos de número total de empregos.',
+#| tab.id = 'tab13'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_jobs_total)) %>% 
+  my_border_theme(x = .) 
+
+
+ft
+```
+
+```{r }
+#| tab.cap = 'Dez maiores atividades, em termos de número total de remuneração.',
+#| tab.id = 'tab14'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_rem_total)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+## 4.2.2 Estabelecimentos
+
+
+A seguir, as Tabelas \@ref(tab:tab15), \@ref(tab:tab16), \@ref(tab:tab17), \@ref(tab:tab18)
+, \@ref(tab:tab19) e  \@ref(tab:tab20) mostram as quantidades de empregos e empresas da RGINT de `r params$f_name_intermediate` (`r params$f_code_intermediate`) para diferentes tamanhos.
+
+```{r }
+#| tab.cap = 'Dez maiores tipos de estabelecimentos que possuem mais de 500 vínculos',
+#| tab.id = 'tab15'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_num_total_vinculo500)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+```{r }
+#| tab.cap = 'Dez maiores tipos de estabelecimentos que possuem entre 100 a 499 vínculos.',
+#| tab.id = 'tab16'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_num_total_vinculo100_499)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+```{r }
+#| tab.cap = 'Dez maiores tipos de estabelecimentos que possuem entre 50 a 99 vínculos.',
+#| tab.id = 'tab17'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_num_total_vinculo50_99)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+```{r }
+#| tab.cap = 'Dez maiores tipos de estabelecimentos que possuem entre 20 a 49 vínculos.',
+#| tab.id = 'tab18'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_num_total_vinculo20_49)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+```{r }
+#| tab.cap = 'Dez maiores tipos de estabelecimentos que possuem entre 10 a 19 vínculos.',
+#| tab.id = 'tab19'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_num_total_vinculo10_19)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+```{r }
+#| tab.cap = 'Dez maiores tipos de estabelecimentos que possuem entre 1 a 9 vínculos por estabelecimento.',
+#| tab.id = 'tab20'
+
+flextable::set_flextable_defaults(
+  font.size = 7
+  ,font.family = "Arial"
+  ,border.color = "black",
+  ,font.color = "black"
+)
+
+ft <- flextable::flextable(data =  data.table::copy(params$fdt_num_total_vinculo1_9)) %>% 
+  my_border_theme(x = .) %>% 
+  flextable::set_table_properties(x = ., layout = "autofit") 
+
+
+ft
+```
+
+# End
