@@ -55,7 +55,9 @@ munis_df1 <- data.table::merge.data.table(
 # Tabela 202 - População residente, por sexo e situação do domicílio
 info2020 <- sidrar::info_sidra(x = 1419)
 
-VecLoop <- c(21,22,23,24,25,26,27,28,29,31,32,52,53)
+VecLoop <- c(11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25
+             , 26, 27, 28, 29, 31, 32, 33, 35, 41, 42
+             , 43, 50, 51, 52, 53)
 
 i = VecLoop[1]
 popList <- lapply(VecLoop,function(i){
@@ -88,7 +90,7 @@ names(popList) <- janitor::make_clean_names(names(popList))
 popList1 <- data.table::copy(popList)
 #  merge with other infos
 popList1[munis_df1
-            , on = c("municipio_codigo" = "codigo_municipio_completo")
+            , on = c("municipio_codigo" = "code_muni")
             , ":="(
               code_intermediate = i.code_intermediate
               ,name_intermediate = i.name_intermediate

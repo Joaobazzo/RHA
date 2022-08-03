@@ -78,7 +78,7 @@ data.table::setnames(merge_dt
                      , new = c("uf_sigla","name_muni"))
 
 merge_dt2 <- data.table::copy(merge_dt)[
-  regiao$pop_censo_pj[ano == 2010,.SD[1],by = .(municipio_codigo)]
+  regiao$pop_censo_br[ano == 2010,.SD[1],by = .(municipio_codigo)]
   ,on = c("codigo_ibge" = "municipio_codigo")
   ,`:=`(
      code_intermediate  = i.code_intermediate

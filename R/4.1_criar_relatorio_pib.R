@@ -19,7 +19,7 @@ muni_area <- readxl::read_xls("data-raw/AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2021.
                               ,sheet = "AR_BR_MUN_2021") %>% setDT()
 cnae_raw <- readr::read_rds("data/CNAE_empregos.rds")
 
-lapply(seq_along(vector_unique_code) # i = 1
+lapply(seq_along(vector_unique_code)[1] # i = 1
        ,function(i){
          
          # i = 1

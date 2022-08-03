@@ -26,7 +26,7 @@ names(my_rgint_dt) <- janitor::make_clean_names(names(my_rgint_dt))
 munis_df <- all_rgint
 data.table::setDT(munis_df)
 
-munis_df <- munis_df[code_intermediate %in% unique(my_rgint$RG_Cod),]
+#munis_df <- munis_df[code_intermediate %in% unique(my_rgint$RG_Cod),]
 munis_df[,code_intermediate := as.character(code_intermediate)]
 
 
@@ -59,7 +59,7 @@ data.table::setnames(x = munis_df1
 
 ## 2.2) City -----
 
-munis_df2 <- all_munis[all_munis$code_muni %in% unique(munis_df1$code_muni),]
+munis_df2 <- all_munis#[all_munis$code_muni %in% unique(munis_df1$code_muni),]
 
 data.table::setDT(munis_df2)
 
@@ -98,18 +98,18 @@ popcenso_br[munis_df1
               ,name_imediate = i.nome_regiao_geografica_imediata
             )]
 
-popcenso <- data.table::copy(popcenso_all) %>% 
-  .[municipio_codigo %in% unique(munis_df1$code_muni)]
+
 
 ## 2.4) Pop projection---------
 
 sidrar::info_sidra(x = 6579)
-pop_proj_br <- readRDS("../ubanformbr/data/table_6579_ibge.rds")
+#pop_proj_br <- readRDS("../ubanformbr/data/table_6579_ibge.rds")
 pop_proj_br <- sidrar::get_sidra(x = 6579
                               , variable = 9324
                               , period = "2019"
                               , geo = "City")
-
+setDT(pop_proj_br)
+names(pop_proj_br) <- janitor::make_clean_names(names(pop_proj_br))
 # merge
 pop_proj_br[munis_df1
             , on = c("municipio_codigo" = "code_muni")
@@ -120,16 +120,13 @@ pop_proj_br[munis_df1
               ,name_imediate = i.nome_regiao_geografica_imediata
             )]
 
-pop_proj <- data.table::copy(pop_proj_br) %>% 
-  .[municipio_codigo %in% unique(munis_df1$code_muni)]
+pop_proj <- data.table::copy(pop_proj_br)
 
 # Merge -----
 
 munis_list <- list("intermediate_region" = munis_df1
                    ,"municipality" = munis_df2
                    ,"pop_censo_br" = popcenso_br
-                   ,"pop_censo_pj" = popcenso
-                   ,"pop_2020_br" = pop_proj_br
-                   ,"pop_2020_pj" = pop_proj)
+                   ,"pop_2020_br" = pop_proj_br)
 
 readr::write_rds(munis_list,"data/munis_list.rds",compress="gz")
