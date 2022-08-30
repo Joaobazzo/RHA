@@ -1,6 +1,6 @@
 # 2) function input data ----
 
-function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
+function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   
   formato_bonitinho <- function(x) {
     diff_nchar <- nchar(x) - nchar(round(x))
@@ -14,17 +14,16 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
       , width = nchar(round(x))+3
     )
   }
-  # * -----
   # INTRO -----
-  # * -----
+  # ..................................... ------
   ## f1 | f2 ----
   s_name_intermediate = input_file$intermediate_region[
     code_intermediate == s_input,name_intermediate
   ][1]
   
-  # * -----
+
   # POP -----
-  # * -----
+  # ..................................... ------
   
   formato_bonitinho_pop <- function(vetor_numerico) {
     formatC(
@@ -40,12 +39,12 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
     ,
   ] 
   
-  raw_pop_censo_pj <- data.table::copy(input_file$pop_censo_pj)[
+  raw_pop_censo_pj <- data.table::copy(input_file$pop_censo_br)[
     municipio_codigo %in% as.character(unique(raw_rgint$code_muni))
     ,
   ]
   
-  raw_pop_2020_pj <- data.table::copy(input_file$pop_2020_pj)[
+  raw_pop_2020_pj <- data.table::copy(input_file$pop_2020_br)[
     municipio_codigo %in% as.character(unique(raw_rgint$code_muni))
     ,
   ]
@@ -129,7 +128,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   ## fp6  -----
   
   
-  my_pop_rgi_2020 <- data.table::copy(input_file$pop_2020_pj)  %>% 
+  my_pop_rgi_2020 <- data.table::copy(input_file$pop_2020_br)  %>% 
     .[code_intermediate == s_input,] %>% 
     .[,{
       list(
@@ -151,7 +150,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   my_bind_pop_2020 <- list(my_pop_rgi_2020,my_pop_rgint_2020) %>% 
     data.table::rbindlist(use.names = TRUE)
   
-  my_pop_rgi_2010 <- data.table::copy(input_file$pop_censo_pj)  %>% 
+  my_pop_rgi_2010 <- data.table::copy(input_file$pop_censo_br)  %>% 
     .[code_intermediate == s_input,] %>% 
     .[ano == "2010",] %>% 
     .[situacao_do_domicilio != "Total",] %>% 
@@ -226,84 +225,72 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   names(sq_ref) <- l1
   sq_ref
   
-  # * -----
   # PIB -----
-  # * -----
+  # ..................................... ------
   ### prep ----
   tmp_pop_rgi <- data.table::copy(pop_raw) %>% 
     .[ano == 2019,]
   
-  tmp_pib_rgi <- data.table::copy(pib_raw) %>% 
-    .[variavel != "Produto Interno Bruto a preços correntes",] %>% 
-    .[variavel != "Impostos, líquidos de subsídios, sobre produtos a preços correntes",] %>% 
-    #.[variavel != "Valor adicionado bruto a preços correntes total",] %>% 
-    .[variavel %like% "preços correntes total", variavel := "PIB"] %>% 
-    .[variavel %like% "agropecuária", variavel := "Agro."] %>% 
-    .[variavel %like% "dos serviços,", variavel := "Serv."] %>% 
-    .[variavel %like% "da administração,", variavel := "Adm."] %>% 
-    .[variavel %like% "da indústria", variavel := "Ind."] %>% 
-    .[ano == 2019,]
-  
-  # merge
-  tmp_pib_rgi[tmp_pop_rgi
-              , on = c("ano","municipio_codigo","code_intermediate")
-              , ":="( population = i.valor)]
-  # add state
-  tmp_pib_rgi[,abbrev_state := stringr::str_sub(string = municipio
-                                                ,start = nchar(municipio)-1
-                                                ,end = nchar(municipio))]
-  
-  tmp_pib_rgi[capitais_raw,on = "abbrev_state"
-              ,":=" (name_state = i.name_state,
-                     code_state = i.code_state)]
+  tmp_pib_rgi <- data.table::copy(pib_raw)
+  tmp_pib_rgi[,mun := as.character(mun)]
+  setnames(tmp_pib_rgi,"mun","code_muni")
+  tmp_pib_rgi <- tmp_pib_rgi[,.SD,.SDcols = 
+                               c("code_muni","pop_est2020","pib"
+                                 ,"vab_ind","vab_agro"
+                                 ,"vab_servicos","vab_publico"
+                                 ,"pib_per_capita","uf"
+                                 ,"nome_uf","regiao_geografica_intermediaria"
+                                 ,"nome_regiao_geografica_intermediaria"
+                                 , "regiao_geografica_imediata"
+                                 ,"nome_regiao_geografica_imediata"
+                                 ,"mesorregiao_geografica"
+                                 ,"nome_mesorregiao"
+                                 ,"microrregiao_geografica"
+                                 ,"nome_microrregiao"
+                                 )] 
+  tmp_pib_rgi <- tmp_pib_rgi[df_geral, on = c("code_muni")]
   
   s_state <- unique(tmp_pib_rgi[code_intermediate == s_input,]$name_state)
   s_code_capital <- capitais_raw[name_state == s_state,code_muni]
   
   # remove NA, such as ano == 2002
-  tmp_pib_rgi <- tmp_pib_rgi[!is.na(population)]
+  #tmp_pib_rgi <- tmp_pib_rgi[!is.na(population)]
   
   tmp_pib_rgi_bind <- 
     list(
-      tmp_pib_rgi[code_intermediate %in% s_input,       ] %>% 
-        .[,local_id := municipio_codigo] %>% 
-        .[,name_local := municipio] %>% 
+      tmp_pib_rgi[regiao_geografica_intermediaria %in% s_input,       ] %>% 
+        .[,local_id := code_muni] %>% 
+        .[,name_local := name_muni] %>% 
         .[,local := "Município"]
-      , tmp_pib_rgi[code_intermediate %in% s_input,       ] %>% 
-        .[,local_id := code_imediate] %>% 
-        .[,name_local := name_imediate] %>% 
+      , tmp_pib_rgi[regiao_geografica_intermediaria %in% s_input,       ] %>% 
+        .[,local_id := code_rgi] %>% 
+        .[,name_local := name_rgi] %>% 
         .[,local := "Região Imediata"]
-      ,tmp_pib_rgi[code_intermediate %in% s_input,      ] %>% 
-        .[,local_id := code_intermediate] %>% 
-        .[,name_local := name_intermediate] %>% 
+      ,tmp_pib_rgi[regiao_geografica_intermediaria %in% s_input,      ] %>% 
+        .[,local_id := regiao_geografica_intermediaria] %>% 
+        .[,name_local := nome_regiao_geografica_intermediaria] %>% 
         .[,local := "Região Intermediária"]
-      ,tmp_pib_rgi[municipio_codigo %in% s_code_capital,] %>% 
-        .[,local_id := municipio_codigo] %>% 
-        .[,name_local := municipio] %>% 
+      ,tmp_pib_rgi[code_muni %in% s_code_capital,] %>% 
+        .[,local_id := code_muni] %>% 
+        .[,name_local := name_muni] %>% 
         .[,local := "Capital"]
       ,tmp_pib_rgi[name_state %in% s_state,] %>% 
         .[,local_id := code_state] %>% 
-        .[,name_local := name_state] %>% 
+        .[,name_local := nome_uf] %>% 
         .[,local := "Estado"]
     ) %>% data.table::rbindlist()
   
-  tmp_pib_local <-  data.table::dcast.data.table(
-    data = tmp_pib_rgi_bind
-    ,formula =   ano + local + local_id + name_local + code_intermediate + code_imediate + municipio_codigo + population~ variavel
-    ,value.var = "valor"
-    #,fun.aggregate = sum
-  ) 
   
   # arruma colunas e calcula percentuais
-  tmp_pib_cap_rgint <- data.table::copy(tmp_pib_local) %>% 
+  tmp_pib_cap_rgint <- data.table::copy(tmp_pib_rgi_bind) %>% 
     .[,{
       
-      sum_pop  <- sum(population,na.rm = TRUE)
-      sum_pib  <- sum(PIB, na.rm = TRUE)
-      sum_adm  <- sum(`Adm.`,na.rm = TRUE)  
-      sum_agr  <- sum(`Agro.`,na.rm = TRUE) 
-      sum_ind  <- sum(`Ind.`,na.rm = TRUE)  
-      sum_serv <- sum(`Serv.`,na.rm = TRUE)
+      sum_pop  <- sum(pop_est2020,na.rm = TRUE)
+      sum_pib  <- sum(pib, na.rm = TRUE)
+      sum_adm  <- sum(vab_publico,na.rm = TRUE)  
+      sum_agr  <- sum(vab_agro,na.rm = TRUE) 
+      sum_ind  <- sum(vab_ind,na.rm = TRUE)  
+      sum_serv <- sum(vab_servicos,na.rm = TRUE)
       
       prop_adm  <- sum_adm  / sum_pib
       prop_agr  <- sum_agr  / sum_pib
@@ -503,12 +490,11 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   
   ## f14 -----
   s_num_muni_rgint <- tmp_pib_rgi %>% 
-    .[code_intermediate == s_input,municipio_codigo] %>% 
+    .[code_intermediate == s_input,code_muni] %>% 
     uniqueN()
   
-  # * -----
   # IVS / IDHM  ------
-  # * -----
+  # ..................................... ------
   
   ## f15 -----
   sq_num_renda_din <- data.table::copy(ivs_raw) %>% 
@@ -639,14 +625,14 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
                       ,"Pop. (2020)","IVS","IDH"
                       ,"Renda","Dinamismo")
   
-  # * -----
+
   # Destaques Economia----
-  # * -----
+  # ..................................... ------
   ## f30 -----
   
   tmp_pib <- data.table::copy(tmp_pib_cap_rgint_muni)
   tmp_pib[,PIB_num := as.numeric(PIB)]
-  tmp_pib[,PIB := formato_bonitinho(PIB_num)]
+  tmp_pib[,PIB := formato_bonitinho(PIB_num),by = .(local_id)]
   tmp_pib[,single_name := paste0(name_local," (",local_id,")")]
   tmp_pib[,destaque_vab := max(pp_ind,pp_serv,pp_adm),by = single_name]
   tmp_pib[,destaque_vab := fcase(destaque_vab == pp_ind,paste0(destaque_vab, "% Indústria")
@@ -672,7 +658,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   tmp_muni_codes <- tmp_muni_codes[muni_area,on = c("local_id" = "CD_MUN")
                                    ,area := i.AR_MUN_2021]
   tmp_muni_codes[,PIB_area_num := PIB_num /area]
-  tmp_muni_codes[,PIB_area := formato_bonitinho(PIB_area_num)]
+  tmp_muni_codes[,PIB_area := formato_bonitinho(PIB_area_num), by = .(local_id)]
   sq_big_pib_area <- tmp_muni_codes[order(PIB_area_num,decreasing = TRUE),][1:5]
   sq_big_pib_area <- sq_big_pib_area[,.SD,.SDcols = c("single_name","PIB_area"
                                                       ,"destaque_vab","tipologia_pndr")]
@@ -704,9 +690,8 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
                           ,"VAB Serviços"    ,"%   "
                           ,"VAB Agropecuária","%  "
                           ,"VAB Indústria"   ,"% ")
-  # * -----
   # Emprego -----
-  # * -----
+  # ..................................... ------
   # get files
   my_division <- function(a,b){round(100 * a / b , 2)}
   tmp_cnae <- data.table::copy(cnae_raw$raw_CNAE) %>% 
@@ -866,10 +851,19 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   
   
   
+  # CTI ----
+  # ..................................... ------
+  quadro_31 <- openxlsx::read.xlsx(
+      xlsxFile = sprintf("data/dados_maira/%s.xlsx",s_input)
+      ,sheet = "Quadro 31"
+      ,colNames = FALSE
+      ,fillMergedCells = FALSE
+  ) %>% setDT()
+
+  quadro_31
   
-  # * -----
-  # Input Doc-----
-  # * -----
+  # INPUT Doc-----
+  # ..................................... ------
   rmarkdown::render(
     input = "inst/rmarkdown/relatorio_pib.Rmd"
     , output_file = arquivo_resultado
@@ -938,4 +932,4 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "2101"
   
   return(NULL)
 }
-# ** end function-----
+# ** end -----
