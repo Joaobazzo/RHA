@@ -10,6 +10,9 @@ my_division <- function(a,b){round(100 * a / b , 2)}
 input_file <- readr::read_rds("data/munis_list.rds")
 df_geral <- readr::read_rds("data/df_geral_muni.rds")
 df_geral <- df_geral[!is.na(code_muni),]
+df_geral[mun_pisf == 1,bacia := "PISF"]
+df_geral[mun_bsf == 1,bacia := "BSF"]
+df_geral[mun_bpar == 1,bacia := "BPAR"]
 link_gdocs <- "https://docs.google.com/spreadsheets/d/1WbmvP0qgg6iHnu2o0H-4k0dXQ9wUX10HeBKIht7Nl5M/edit?usp=sharing"
 
 # 2) Read  ------
@@ -18,7 +21,7 @@ capitais_raw <- readr::read_rds("data/capitais.rds")
 ivs_raw <- readr::read_rds("data/ivs_idhm_muni.rds")
 cnae_raw <- readr::read_rds("data/CNAE_empregos.rds")
 
-outro <- data.table::fread("../../../ListaAtividades_Municipio.csv")
+
 
 
 # 3) BASICO_POPULACAO ok-----
@@ -98,9 +101,14 @@ df[,classe_pop_urbana_2010 :=  fcase(pop_urbana_2010 <= 4624,"Baixa",
 df[,classe_perc_urbana_2010 := fcase(perc_urbana_2010 <= 57.9,"Baixa",
                                      perc_urbana_2010 < 72.3,"Média",
                                      perc_urbana_2010 >= 72.3,"Alta")] 
+
+## Save-----
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/POPULACAO.rds")
+
+
 df <- format(df,decimal.mark = ",") %>% 
   as.data.frame() %>% setDT()
-## Save-----
+
 
 googlesheets4::gs4_auth_configure()
 googlesheets4::gs4_auth()
@@ -108,7 +116,9 @@ googlesheets4::write_sheet(data = df
                            ,ss = link_gdocs
                            ,sheet = "POPULACAO") 
 
-# 4) PIB ok -----
+
+
+# 4) PIB  -----
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
 # pib
@@ -116,6 +126,7 @@ pib_raw <- readr::read_rds("data/pib_total_prep.rds")
 setnames(pib_raw,"mun","code_muni")
 # produto
 icep <- fread("data-raw/planilhas_basilio/PSICE_Municipio.csv")
+
 #icep$Ano %>% unique()
 icep <- icep[Ano == 2019,]
 setnames(icep,"Mun","code_muni")
@@ -173,7 +184,15 @@ df[,classe_VAB_Adm_pp :=  fcase(VAB_Adm_pp < 25.2,"Alta",
                                 VAB_Adm_pp < 36.8, "Média",
                                 VAB_Adm_pp >= 36.8,"Baixa")]
 
+df[,peso_VAB_Adm_pp := fcase(classe_VAB_Adm_pp == "Baixa",0.75,
+                             classe_VAB_Adm_pp == "Média",0.5,
+                             classe_VAB_Adm_pp == "Alta",0.25)]
 
+df[,classe_area_destaque := fifelse(
+  (classe_VAB_Ind_pp == "Alta" | 
+     classe_VAB_Serv_pp == "Alta" | 
+     classe_VAB_Agro_pp == "Alta"),1,0)
+  , by = .(code_muni)]
 
 df[,classe_area_vulneraveis := fifelse(
   classe_VAB_Ind_pp == "Baixa" & 
@@ -181,15 +200,6 @@ df[,classe_area_vulneraveis := fifelse(
     classe_VAB_Agro_pp == "Baixa"
   ,0,1), by = .(code_muni)]
 
-df[,peso_VAB_Adm_pp := fcase(classe_VAB_Ind_pp == "Baixa",0.75,
-                             classe_VAB_Ind_pp == "Média",0.5,
-                             classe_VAB_Ind_pp == "Alto",0.25)]
-
-df[,classe_area_destaque := fifelse(
-  (classe_VAB_Ind_pp == "Alta" | 
-     classe_VAB_Serv_pp == "Alta" | 
-     classe_VAB_Agro_pp == "Alta"),1,0)
-  , by = .(code_muni)]
 
 df[,num_vab_alto := sum(c(
   classe_VAB_Ind_pp == "Alta", 
@@ -210,22 +220,59 @@ df[,peso_ICEM_Prod := fcase(
   !is.na(ICEM_Prod) & ICEM_Prod <= 0,0.5,
   !is.na(ICEM_Prod) & ICEM_Prod > 0,0.75)]
 
+# peso_VAB_COMB_Agro_Serv_altos
+df[,peso_VAB_COMB_Agro_Serv_altos := sum(c(
+  classe_VAB_Serv_pp == "Alta", 
+  classe_VAB_Agro_pp == "Alta"))
+  , by = .(code_muni)]
+df[,peso_VAB_COMB_Agro_Serv_altos := 
+     fcase(peso_VAB_COMB_Agro_Serv_altos <= 1,0,
+           peso_VAB_COMB_Agro_Serv_altos == 2,0.25)]
+
+
+# peso_VAB_COMB_Ind_Serv_altos
+df[,peso_VAB_COMB_Ind_Serv_altos := sum(c(
+  classe_VAB_Ind_pp == "Alta", 
+  classe_VAB_Serv_pp == "Alta"))
+  , by = .(code_muni)]
+df[,peso_VAB_COMB_Ind_Serv_altos := 
+     fcase(peso_VAB_COMB_Ind_Serv_altos <= 1,0,
+           peso_VAB_COMB_Ind_Serv_altos == 2,0.25)]
+
+
+# peso_VAB_COMB_Agro_Ind_altos
+df[,peso_VAB_COMB_Agro_Ind_altos := sum(c(
+  classe_VAB_Ind_pp == "Alta", 
+  classe_VAB_Agro_pp == "Alta"))
+  , by = .(code_muni)]
+df[,peso_VAB_COMB_Agro_Ind_altos := 
+     fcase(peso_VAB_COMB_Agro_Ind_altos <= 1,0,
+           peso_VAB_COMB_Agro_Ind_altos == 2,0.25)]
+
 # pontuacao final
-df[,pontuacao_total_pib := classe_area_vulneraveis + 
+df[,pont_total_pib := classe_area_vulneraveis + 
      classe_area_destaque + 
      classe_ICEM_Ativ + 
      peso_ICEM_Prod + 
      peso_VAB_Adm_pp + 
-     peso_VAB_COMBINACAO]
+     peso_VAB_COMBINACAO + 
+     peso_VAB_COMB_Agro_Serv_altos +
+     peso_VAB_COMB_Ind_Serv_altos + 
+     peso_VAB_COMB_Agro_Ind_altos
+]
 
 df[1]
-
+names(df)
 ## Save-----
 googlesheets4::gs4_auth()
 df <- df %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = df
                            ,ss = link_gdocs
                            ,sheet = "PIB") 
+
+
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/pib.rds")
+
 # 5) COMPLEX ATIV ----
 # [Mensagem Basílio]
 # Estou enviando dos arquivos com  os atividades (@CNAEDiv) para diversicar.
@@ -246,18 +293,38 @@ googlesheets4::write_sheet(data = df
 #' 1) ref. a complexidade das atividades do municipio
 #' 2) outra é a complexidades dos produtos do municipio;
 #' 3) outra é complexidade economica do municipio geral
-
+rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
+gc(reset = TRUE)
 
 
 kativ <- fread(input = "data-raw/planilhas_basilio/ActivKDivers_Municipio.csv",header = TRUE)
-kativ[Region == "2100055"& Ano == 2019]
+kativ <- kativ[Ano == 2019]
+kativ[,Region := as.character(Region)]
 
 
-dt <- fread(input = "data-raw/planilhas_basilio/ProdKDivers_Municipio.csv",header = TRUE)
-dt[Region == "2100055" & Ano == 2019]
-vcr_ativ <- fread(input = "data-raw/planilhas_basilio/ActivVCR_Municipio_2019.csv",header = TRUE)
+kprod <- fread(input = "data-raw/planilhas_basilio/ProdKDivers_Municipio.csv",header = TRUE)
+kprod <- kprod[Ano == 2019]
+kprod[,Region := as.character(Region)]
+
+ica_muni <- data.table::fread("data/complexidade/ASICA_Municipio.csv")
+ica_div_muni <- data.table::fread("data/complexidade/ListaAtividadesDiv_Municipio.csv")
+
+icp_muni <- data.table::fread("data/complexidade/")
+icp_div_muni <- data.table::fread("data/complexidade/ListaAtividadesDiv_Municipio.csv")
 
 
+
+pcomplex_muni <- data.table::copy(df_geral)
+pcomplex_muni <- pcomplex_muni[kprod
+                               ,on = c("code_muni" = "Region")
+                               ,classe_grau_div_prod_mun_km0 := i.Km0]
+pcomplex_muni <- pcomplex_muni[kativ
+                               ,on = c("code_muni" = "Region")
+                               ,classe_grau_div_ativ_mun_kr0 := i.Kr0]
+
+pcomplex_muni
+pcomplex_muni
+#vcr_ativ <- fread(input = "data-raw/planilhas_basilio/ActivVCR_Municipio_2019.csv",header = TRUE)
 
 vcr_colnames <- names(vcr_ativ)[!(names(vcr_ativ) %in% "V1")]
 vcr_ativ[,kro := 0]
@@ -375,6 +442,8 @@ googlesheets4::write_sheet(data = df
                            ,ss = link_gdocs
                            ,sheet = "INFRA_TELE") 
 
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/INFRA_TELE.rds")
+
 ## b.1) INFRA_SAN  -----
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
@@ -395,6 +464,7 @@ dt3 <- fread("data-raw/planilhas_rafael/IN046 - Índice de esgoto tratado.csv")
 names(dt3) <- janitor::make_clean_names(names(dt3))
 
 df <- data.table::copy(df_geral)
+df[,code_muni := as.integer(code_muni)]
 df[dt1, on = c("code_muni" = "codigo_municipio_completo")
    ,":="(IN022 = i.in022_consumo_medio_per_capita_de_agua_l_hab_dia
          ,IN049 = i.in049_indice_de_perdas_na_distribuicao_percent)]
@@ -435,6 +505,8 @@ googlesheets4::write_sheet(data = df
                            ,ss = link_gdocs
                            ,sheet = "INFRA_SAN") 
 
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/INFRA_SAN.rds")
+
 ## c) INFRA_EE---------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
@@ -462,6 +534,7 @@ ce_dt[,cd_rgint := as.character(cd_rgint)]
 tmp_pop <- tmp_pop[ce_dt,on = c("code_intermediate" = "cd_rgint")]
 
 
+tmp_pop[,code_muni := as.character(code_muni)]
 df[tmp_pop,on = "code_muni",":="(DECAPTURADO =  decapurado_w,
                                  FECAPTURADO = fecapurado_w)]
 # classe
@@ -478,11 +551,16 @@ df[FECAPTURADO > 6.2                     ,classe_FEC := 1] # "F_base"
 # pont_infra_ee
 df[,pont_infra_ee := classe_DEC + classe_FEC]
 # save----
+
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/INFRA_EE.rds")
+
 googlesheets4::gs4_auth()
 df <- df %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = df
                            ,ss = link_gdocs
                            ,sheet = "INFRA_EE") 
+
+
 
 # 10) DES HUMANO ok ----------------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
@@ -545,6 +623,7 @@ googlesheets4::write_sheet(data = df
                            ,sheet = "DESV. HUM."
 ) 
 
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/DESV_HUM.rds")
 # 11) EMPREGO -------------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 
@@ -552,7 +631,7 @@ emp_dt_raw <- data.table::fread("data-raw/Empregos e remuneracao/ActivitySpace20
 emp_dt_name <- data.table::fread("data-raw/Empregos e remuneracao/classeCnae.csv")
 
 data.table::setnames(emp_dt_raw,old = "Codigo_Municipio",new = "code_muni")
-emp_dt_raw[,code_muni := as.double(code_muni)]
+emp_dt_raw[,code_muni := as.character(code_muni)]
 emp_dt_raw <- emp_dt_raw[df_geral, on = "code_muni"]
 emp_dt_raw[,N_empresas := 1,by = code_muni]
 # emprego estado
@@ -663,13 +742,17 @@ emp_dt[,total_filtro_6 := empregos_RGINT_perc_empregos_Estado +
          rem_RGINT_perc_rem_Estado + empresas_RGINT_perc_empresas_Estado]
 
 # save----
+readr::write_rds(emp_dt,"data/complexidade/complexidade_muni_prep_data/EMPREGO.rds")
+
+
 googlesheets4::gs4_auth()
 dt <- dt %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = emp_dt
                            ,ss = link_gdocs
                            ,sheet = "EMPREGO") 
 
-# 12) EXPORTACAO -------------
+
+# 12) BALANCA COMERCIAL -------------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 
 imp_dt <- data.table::fread("data-raw/Importacao e exportacao/IMP_2020_MUN.csv")
@@ -735,15 +818,24 @@ imp_dt2[,classe_importacao :=  fcase(importacao <=  447914/10^6,"Baixa",
 
 imp_dt2[,total_filtro_7 := exp_sim + imp_sim + saldo_sim]
 
-imp_dt2
+
+imp_dt2[,p_RGINT_perc_exp_Estado := exportacao / sum(exportacao,na.rm = TRUE), by = .(abbrev_state)]
+imp_dt2[,p_RGINT_perc_exp_Bacia := exportacao / sum(exportacao,na.rm = TRUE), by = .(bacia)]
+imp_dt2[,p_RGINT_perc_exp_RTP := exportacao / sum(exportacao,na.rm = TRUE), by = .(regiao_total)]
 
 # save----
+readr::write_rds(imp_dt2
+                 ,"data/complexidade/complexidade_muni_prep_data/BALANCA_COMERCIAL.rds")
+
+
 googlesheets4::gs4_auth()
 imp_dt2 <- imp_dt2 %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = imp_dt2
                            ,ss = link_gdocs
                            ,sheet = "BALANCA_COMERCIAL") 
 
+
+readr::write_rds(imp_dt2,"data/complexidade/complexidade_muni_prep_data/BALANCA_COMERCIAL.rds")
 # 13) FNE -------------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
@@ -783,7 +875,7 @@ tab4 <- data.table::copy(tab) %>%
 tab1 <- tab1[tab2, on = "codigo_municipio"]
 tab1 <- tab1[tab3, on = "codigo_municipio"]
 tab1 <- tab1[tab4, on = "codigo_municipio"]
-tab1[,codigo_municipio := as.double(codigo_municipio)]
+tab1[,codigo_municipio := as.character(codigo_municipio)]
 setnames(tab1,"codigo_municipio","code_muni")
 
 
@@ -802,17 +894,23 @@ tab1 <- tab1[df_geral, on = "code_muni"]
 tab1[,classe_num_contratos :=  fcase(num_contratos <= 41,"Baixo",
                                      num_contratos <= 87, "Médio",
                                      num_contratos > 87,"Alto")]
-tab1 <- tab1[,.SD,.SDcols = 
-               c(names(df_geral),"inv_urbano","inv_rural"
-                 ,"inv_pf","inv_pj","inv_infra","inv_comercio","inv_ind"
-                 ,"inv_pec","inv_agr","inv_agroind","inv_turismo"
-                 ,"num_contratos")]
+# tab1 <- tab1[,.SD,.SDcols = 
+#                c(names(df_geral),"inv_urbano","inv_rural"
+#                  ,"inv_pf","inv_pj","inv_infra","inv_comercio","inv_ind"
+#                  ,"inv_pec","inv_agr","inv_agroind","inv_turismo"
+#                  ,"num_contratos")]
 # save----
+
+readr::write_rds(tab1,"data/complexidade/complexidade_muni_prep_data/FNE.rds")
+
 googlesheets4::gs4_auth()
 tab1 <- tab1 %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = tab1
                            ,ss = link_gdocs
                            ,sheet = "FNE") 
+
+
+
 # 14) EDUCACAO ----
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
@@ -850,11 +948,13 @@ tab1[,CO_MUNICIPIO := NULL]
 data.table::setnames(tab1
                      ,c("NO_MUNICIPIO")
                      ,c("name_muni"))
-tab1[,code_muni := as.double(code_muni)]
+tab1[,code_muni := as.character(code_muni)]
 tab1[,name_muni := NULL]
+
 tab1 <- tab1[df_geral,on = "code_muni"]
 
-tab1 <- tab1[,.SD,.SDcols = c( names(df_geral), 'Inv_educ_basica', 'Inv_educ_especial'
+tab1 <- tab1[,.SD,.SDcols = c( names(df_geral), 'Inv_educ_basica'
+                               , 'Inv_educ_especial'
                                , 'Inv_educ_infantil'
                                , 'Inv_educ_infantil_creche'
                                , 'Inv_educ_infantil_pre-escola'
@@ -882,25 +982,30 @@ tab1 <- tab1 %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = tab1
                            ,ss = link_gdocs
                            ,sheet = "EDUCACAO") 
+readr::write_rds(tab1,"data/complexidade/complexidade_muni_prep_data/EDUCACAO.rds")
 
 # 15) MEIO AMBIENTE ---------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
 
 tab <- fread("data/uso_antropico_natural_mun_mapbio.csv",dec = ",")
-tab[,CD_MUN := as.double(CD_MUN)]
+tab[,CD_MUN := as.character(CD_MUN)]
 all_names <- names(tab)[!(names(tab) %in% "CD_MUN")]
 setnames(tab,"CD_MUN","code_muni")
 tab <- tab[df_geral, on = c("code_muni")]
 tab[1]
 tab <- tab[,.SD,.SDcols = c(names(df_geral),all_names)]
+tab <- tab[!is.na(AREAMUN_Ha)]
 
+tab
 # save----
 googlesheets4::gs4_auth()
 tab <- tab %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = tab
                            ,ss = link_gdocs
                            ,sheet = "MEIO_AMBIENTE") 
+
+readr::write_rds(tab,"data/complexidade/complexidade_muni_prep_data/MEIO_AMBIENTE.rds")
 
 ## b) SANEAMENTO -----
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
@@ -916,6 +1021,7 @@ muni_pluv[,Mun := NULL]
 muni_resi[,Mun := NULL]
 
 df <- data.table::copy(df_geral)
+df[,code_muni := as.integer(code_muni)]
 df <- merge.data.table(x = df, y = muni_agua
                        ,by.x = "code_muni",by.y = "Cod"
                        ,all = TRUE)
@@ -936,18 +1042,21 @@ df <- df %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = df
                            ,ss = link_gdocs
                            ,sheet = "SANEAMENTO") 
-### RES old-----
-res <- fread("data/Municipios - SanRes.csv")
-names(res) <- janitor::make_clean_names(names(res))
-setnames(res,"codigo_municipio_completo","code_muni")
-all_names <- names(res)[!(names(res) %in% c( "code_muni","nome_municipio"))]
 
-res <- res[df_geral,on = "code_muni"]
-res <- res[,.SD,.SDcols = c(names(df_geral),all_names)]
-res[,in031 := fifelse(in031 == "Sim",1,0)]
-res[,ca004 := fifelse(ca004 == "Sim",2,0)]
-res[,ca005 := fifelse(ca005 == "Sim",3,0)]
-res[,total_filtro_11 := in031 + ca004 + ca005]
+readr::write_rds(df,"data/complexidade/complexidade_muni_prep_data/SANEAMENTO.rds")
+
+### RES old-----
+# res <- fread("data/Municipios - SanRes.csv")
+# names(res) <- janitor::make_clean_names(names(res))
+# setnames(res,"codigo_municipio_completo","code_muni")
+# all_names <- names(res)[!(names(res) %in% c( "code_muni","nome_municipio"))]
+# 
+# res <- res[df_geral,on = "code_muni"]
+# res <- res[,.SD,.SDcols = c(names(df_geral),all_names)]
+# res[,in031 := fifelse(in031 == "Sim",1,0)]
+# res[,ca004 := fifelse(ca004 == "Sim",2,0)]
+# res[,ca005 := fifelse(ca005 == "Sim",3,0)]
+# res[,total_filtro_11 := in031 + ca004 + ca005]
 # 16) HIDRICO ---------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
@@ -969,14 +1078,18 @@ tab[i1_intervalo_perc == "Sem informações ou com informações parciais"
     ,grau_compr := "Sem informações ou com informações parciais"]
 names(tab) <- c("code_muni","interv_comprom_rh","classe_comprom_rh")
 
+tab[,code_muni := as.character(code_muni)]
 tab <- tab[df_geral,on = "code_muni"]
 tab <- tab[,.SD,.SDcols = c(names(df_geral),"interv_comprom_rh","classe_comprom_rh")]
+
 # save----
 googlesheets4::gs4_auth()
 tab <- tab %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = tab
                            ,ss = link_gdocs
                            ,sheet = "REC_HIDRICO") 
+
+readr::write_rds(tab,"data/complexidade/complexidade_muni_prep_data/REC_HIDRICO.rds")
 
 # 17) IRRIGACAO -----------
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
@@ -1025,7 +1138,7 @@ tab1 <- tab1[tab2,on = "municipio_codigo"
 tab1[1]
 # add ref
 setnames(tab1,"municipio_codigo","code_muni")
-tab1[,code_muni := as.double(code_muni)]
+tab1[,code_muni := as.character(code_muni)]
 tab1 <- tab1[df_geral,on = "code_muni"]
 tab1 <- tab1[,.SD,.SDcols = c(names(df_geral),"valor_da_producao"
                               ,"area_colhida"
@@ -1039,6 +1152,8 @@ tab1 <- tab1 %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
 googlesheets4::write_sheet(data = tab1
                            ,ss = link_gdocs
                            ,sheet = "EMPREGO") 
+
+readr::write_rds(tab1,"data/complexidade/complexidade_muni_prep_data/EMPREGO.rds")
 
 # 18) AGRO -----
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
@@ -1499,9 +1614,9 @@ all_muni <- all_muni %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% se
 googlesheets4::write_sheet(data = all_muni
                            ,ss = link_gdocs
                            ,sheet = "AGRO") 
-
-
 readr::write_rds(all_muni,"data/complexidade/complexidade_muni_prep_data/AGRO.rds")
+
+
 # 19) ORIENTACAO TECNICA IRRIGACAO------ 
 
 irr$variavel %>% unique()
@@ -1553,7 +1668,7 @@ urb
 all_muni <- data.table::copy(df_geral)
 
 
-urb[,cod_municipio := as.double(cod_municipio)]
+urb[,cod_municipio := as.character(cod_municipio)]
 all_muni <- all_muni[urb,on = c("code_muni" = "cod_municipio")]
 all_muni[1:4]
 
@@ -1565,22 +1680,255 @@ all_muni <- all_muni %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% se
 googlesheets4::write_sheet(data = all_muni
                            ,ss = link_gdocs
                            ,sheet = "URBANISMO") 
+
+readr::write_rds(all_muni,"data/complexidade/complexidade_muni_prep_data/URBANISMO.rds")
+
 # 21) POLITICA RURAL ----
 rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
 
 irr <- readr::read_rds("data/agro_table6858.rds")
-irr[,condicao_do_produtor_em_relacao_as_terras := NULL]
-irr[,grupos_de_atividade_economica  := NULL]
-irr[,origem_da_orientacao_tecnica_recebida := NULL]
-irr[,metodo_utilizado_para_irrigacao := NULL]
-irr[,condicao_do_produtor_em_relacao_as_terras_codigo := NULL]
-irr[,grupos_de_atividade_economica_codigo  := NULL]
-irr[,origem_da_orientacao_tecnica_recebida_codigo := NULL]
-irr[,metodo_utilizado_para_irrigacao_codigo := NULL]
+irr[1]
+
+irr$ano %>% unique()
+irr$origem_da_orientacao_tecnica_recebida %>% unique()
+irr$condicao_do_produtor_em_relacao_as_terras %>% unique()
+irr$grupos_de_atividade_economica   %>% unique()
+irr$metodo_utilizado_para_irrigacao  %>% unique()
+irr$condicao_do_produtor_em_relacao_as_terras_codigo  %>% unique()
+irr$grupos_de_atividade_economica_codigo   %>% unique()
+irr$origem_da_orientacao_tecnica_recebida_codigo  %>% unique()
+irr$metodo_utilizado_para_irrigacao_codigo  %>% unique()
 irr$variavel %>% unique()
-irr <- irr[variavel %like% "Número de estabelecimentos agropecuários"]
 irr$tipologia %>% unique()
-irr <- irr[tipologia %like% "Irrigação",]
-irr
+irr$variavel %>% unique()
+irr$unidade_de_medida %>% unique()
+
+
+# estab total
+irr1 <- copy(irr)
+irr1 <- irr1[origem_da_orientacao_tecnica_recebida == "Total" &
+               condicao_do_produtor_em_relacao_as_terras == "Total" & 
+               metodo_utilizado_para_irrigacao == "Total" & 
+               tipologia == "Total" & 
+               grupos_de_atividade_economica == "Total" & 
+               variavel == "Número de estabelecimentos agropecuários com uso de irrigação" & 
+               unidade_de_medida == "Unidades"]
+
+nrow(irr1)
+irr1 <- irr1[,.SD[1], by = municipio_codigo]
+irr1 <- irr1[,.SD,.SDcols = c("municipio_codigo","valor")]
+setnames(irr1,"valor","num_estab_total")
+
+# agricultura familiar
+irr2 <- copy(irr)
+irr2 <- irr2[origem_da_orientacao_tecnica_recebida == "Total" &
+               condicao_do_produtor_em_relacao_as_terras == "Total" & 
+               metodo_utilizado_para_irrigacao == "Total" & 
+               tipologia %like% "Agricultura familiar" & 
+               grupos_de_atividade_economica == "Total" & 
+               variavel == "Número de estabelecimentos agropecuários com uso de irrigação" & 
+               unidade_de_medida == "Unidades"]
+
+nrow(irr2)
+irr2 <- irr2[,.SD[1], by = municipio_codigo]
+irr2 <- irr2[,.SD,.SDcols = c("municipio_codigo","valor")]
+setnames(irr2,"valor","num_estab_agr_familiar")
+
+irr2[, classe_num_estab_agr_familiar := as.character( 
+  cut(num_estab_agr_familiar
+      , breaks = Hmisc::wtd.quantile(
+        x = num_estab_agr_familiar
+        ,probs=seq(0, 1, by=0.2)
+        , na.rm=T
+      ),
+      include.lowest= TRUE
+      , labels= c(0.25,0.25,0.5,0.75,0.75)))]
+
+# classe_area_irrig_orient_tec
+irr3 <- copy(irr)
+irr3 <- irr3[origem_da_orientacao_tecnica_recebida == "Total" &
+               condicao_do_produtor_em_relacao_as_terras == "Total" & 
+               metodo_utilizado_para_irrigacao == "Total" & 
+               tipologia == "Total" & 
+               grupos_de_atividade_economica == "Total" & 
+               variavel == "Área irrigada dos estabelecimentos agropecuários" & 
+               unidade_de_medida == "Hectares"]
+
+nrow(irr3)
+irr3 <- irr3[,.SD[1], by = municipio_codigo]
+irr3 <- irr3[,.SD,.SDcols = c("municipio_codigo","valor")]
+
+irr3[, classe_area_irrig_orient_tec := as.character( 
+  cut(valor
+      , breaks = Hmisc::wtd.quantile(
+        x = valor
+        ,probs=seq(0, 1, by=0.2)
+        , na.rm=T
+      ),
+      include.lowest= TRUE
+      , labels= c(0.25,0.25,0.5,0.75,0.75)))]
+
+irr3[,valor := NULL]
+
+# classe_num_estab_orient_total
+
+irr31 <- copy(irr)
+irr31 <- irr31[origem_da_orientacao_tecnica_recebida == "Total" &
+               condicao_do_produtor_em_relacao_as_terras == "Total" & 
+               metodo_utilizado_para_irrigacao == "Total" & 
+               tipologia == "Total" & 
+               grupos_de_atividade_economica == "Total" & 
+               variavel == "Número de estabelecimentos agropecuários com uso de irrigação" & 
+               unidade_de_medida == "Unidades"]
+
+irr31 <- irr31[,.SD[1], by = .(municipio_codigo,origem_da_orientacao_tecnica_recebida)]
+irr31 <- irr31[,sum(valor,na.rm = TRUE),by = .(municipio_codigo)]
+
+irr31[, classe_num_estab_orient_total := as.character( 
+  cut(V1
+      , breaks = Hmisc::wtd.quantile(
+        x = V1
+        ,probs=seq(0, 1, by=0.2)
+        , na.rm=T
+      ),
+      include.lowest= TRUE
+      , labels= c(0.25,0.25,0.5,0.75,0.75)))]
+
+irr31[,V1 := NULL]
+
+# classe_num_estab_orient_outrasNAOgov
+
+irr4 <- copy(irr)
+irr4 <- irr4[origem_da_orientacao_tecnica_recebida != "Governo (federal, estadual ou municipal)" &
+               origem_da_orientacao_tecnica_recebida != "Total" &
+               origem_da_orientacao_tecnica_recebida != "Não recebe" &
+               condicao_do_produtor_em_relacao_as_terras == "Total" & 
+               metodo_utilizado_para_irrigacao == "Total" & 
+               tipologia == "Total" & 
+               grupos_de_atividade_economica == "Total" & 
+               variavel == "Número de estabelecimentos agropecuários com uso de irrigação" & 
+               unidade_de_medida == "Unidades"]
+
+irr4 <- irr4[,.SD[1], by = .(municipio_codigo,origem_da_orientacao_tecnica_recebida)]
+irr4 <- irr4[,sum(valor,na.rm = TRUE),by = .(municipio_codigo)]
+
+irr4[, classe_num_estab_orient_outrasNAOgov := as.character( 
+  cut(V1
+      , breaks = Hmisc::wtd.quantile(
+        x = V1
+        ,probs=seq(0, 1, by=0.2)
+        , na.rm=T
+      ),
+      include.lowest= TRUE
+      , labels= c(0.25,0.25,0.5,0.75,0.75)))]
+
+irr4[,V1 := NULL]
+
+# classe_orient_tec_xxxxxxx
+
+irr5 <- copy(irr)
+irr5 <- irr5[origem_da_orientacao_tecnica_recebida != "Total" &
+               origem_da_orientacao_tecnica_recebida != "Não recebe" &
+               origem_da_orientacao_tecnica_recebida != "Recebe" &
+               origem_da_orientacao_tecnica_recebida != "Outra" &
+               condicao_do_produtor_em_relacao_as_terras == "Total" & 
+               metodo_utilizado_para_irrigacao == "Total" & 
+               tipologia == "Total" & 
+               grupos_de_atividade_economica == "Total" & 
+               variavel == "Número de estabelecimentos agropecuários com uso de irrigação" & 
+               unidade_de_medida == "Unidades"]
+
+setnames(irr5,"origem_da_orientacao_tecnica_recebida","origem_orint_tec")
+
+
+irr5$origem_orint_tec %>% unique()
+irr5[,origem_orint_tec :=
+       data.table::fcase(
+         origem_orint_tec == "Sistema S","sistemaS",
+         origem_orint_tec == "Própria ou do próprio produtor","proprio_produtor",
+         origem_orint_tec == "Cooperativas","cooperativas",
+         origem_orint_tec == "Empresas privadas de planejamento","empresas",
+         origem_orint_tec == "Empresas integradoras","empresas",
+         origem_orint_tec == "Organização não-governamental (ONG)","ong",
+         origem_orint_tec == "Governo (federal, estadual ou municipal)","gov"
+       )]
+
+irr5[, classe_orint_tec := {
+  my_ranks <- rank(valor, ties.method = "first")
+  decile <- cut(my_ranks
+                , quantile(my_ranks, probs=0:5/5)
+                , include.lowest=TRUE
+                , labels=FALSE
+  )
+}
+, by = .(origem_orint_tec)]
+
+
+irr5[,classe_orint_tec := fcase(classe_orint_tec == 1,0.25,
+                                classe_orint_tec == 2,0.25,
+                                classe_orint_tec == 3,0.50,
+                                classe_orint_tec == 4,0.75,
+                                classe_orint_tec == 5,0.75)]
+
+irr5 <- data.table::dcast(data = irr5
+                          ,formula = municipio_codigo  ~ paste0("classe_orint_tec_",origem_orint_tec)
+                          ,value.var = "classe_orint_tec"
+                          ,fun.aggregate = sum
+                          ,fill = NA)
+
+irr5
+# merge
+dt_irr <- df_geral %>%
+  merge.data.table(x = ., y = irr1
+                   ,by.x = "code_muni"
+                   ,by.y = "municipio_codigo"
+                   ,all = TRUE) %>% 
+  merge.data.table(x = ., y = irr2
+                   ,by.x = "code_muni"
+                   ,by.y = "municipio_codigo"
+                   ,all = TRUE) %>% 
+  merge.data.table(x = ., y = irr3
+                   ,by.x = "code_muni"
+                   ,by.y = "municipio_codigo"
+                   ,all = TRUE) %>% 
+  merge.data.table(x = ., y = irr31
+                   ,by.x = "code_muni"
+                   ,by.y = "municipio_codigo"
+                   ,all = TRUE) %>% 
+  merge.data.table(x = ., y = irr4
+                   ,by.x = "code_muni"
+                   ,by.y = "municipio_codigo"
+                   ,all = TRUE) %>% 
+  merge.data.table(x = ., y = irr5
+                   ,by.x = "code_muni"
+                   ,by.y = "municipio_codigo"
+                   ,all = TRUE) 
+
+dt_irr[,soma_classes_pol_rurais := 
+         as.numeric(classe_area_irrig_orient_tec) +
+         as.numeric(classe_num_estab_agr_familiar) +
+         as.numeric(classe_num_estab_orient_total) +
+         as.numeric(classe_num_estab_orient_outrasNAOgov)]
+
+# save----
+readr::write_rds(dt_irr,"data/complexidade/complexidade_muni_prep_data/POLIT_RURAL.rds")
+
+
+googlesheets4::gs4_auth()
+dt_irr <- dt_irr %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
+googlesheets4::write_sheet(data = dt_irr
+                           ,ss = link_gdocs
+                           ,sheet = "POLIT. RURAL") 
+
+
+# 22) DESASTRES NATURAIS  ----
+rm(list = ls()[!(ls() %in% c("input_file","link_gdocs","my_division","df_geral"))])
+gc(reset = TRUE)
+
+desn <- openxlsx::read.xlsx("data-raw/Banco_de_Dados_Completo_Dicionário/DesNaturais.xlsx"
+                            ,sheet = "Planilha1")
+readr::write_rds(desn,"data/complexidade/complexidade_muni_prep_data/DES_NATURAL.rds")
+
+
 # end -----

@@ -246,7 +246,13 @@ atv_names <- c("CNAE20","Descricao","Grupo","Cor")
 all_names <- names(dt_out)[!(names(dt_out) %in% atv_names)]
 dt_out <- dt_out[,.SD,.SDcols = c(atv_names,all_names)]
 
-
+# soma
+vec_sum <- names(dt_out)
+vec_sum <- vec_sum[!(vec_sum %in% c("CNAE20","Descricao"
+                                    ,"Grupo","Cor"))]
+dt_out[,soma_pesos_empregos_e_remuneracoes_atividades_sim := rowSums(.SD,,na.rm = TRUE)
+       ,.SDcols=vec_sum]
+dt_out
 ## save----
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out
@@ -419,12 +425,17 @@ dt_out <- copy(comex_dt) %>%
                    ,y = comex_rtp_dt
                    ,by = c( "SH4","name_sh4_por")
                    ,all = TRUE) 
-
+# soma
+vec_sum <- names(dt_out)
+vec_sum <- vec_sum[!(vec_sum %in% c("SH4","name_sh4_por"))]
+dt_out[,soma_pesos_comex_produtos_sim := rowSums(.SD,,na.rm = TRUE)
+       ,.SDcols=vec_sum]
+dt_out
 ### save----
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out
                            ,ss = link_gdocs
-                           ,sheet = "PROD_BALANCA_COMERCIAL") 
+                           ,sheet = "Balança Comercial") 
 
 # AGRO ----
 rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
@@ -529,7 +540,12 @@ dt_out_agro <- copy(agro) %>%
                    ,agro_state_dt
                    ,by = c( "produto","produto_cod")
                    ,all = TRUE) 
-
+# soma
+vec_sum <- names(dt_out_agro)
+vec_sum <- vec_sum[!(vec_sum %in% c("produto","produto_cod"))]
+dt_out_agro[,soma_pesos_agropecuaria := rowSums(.SD,,na.rm = TRUE)
+            ,.SDcols=vec_sum]
+dt_out_agro
 ### save----
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out_agro[!is.na(produto)]
@@ -638,6 +654,12 @@ dt_out_pec <- copy(pec_dt) %>%
                    ,pec_estado_dt
                    ,by = c( "tipo","cod")
                    ,all = TRUE) 
+# soma
+vec_sum <- names(dt_out_pec)
+vec_sum <- vec_sum[!(vec_sum %in% c( "tipo","cod"))]
+dt_out_pec[,soma_pesos_competitividade_produto_rural_sim := rowSums(.SD,,na.rm = TRUE)
+           ,.SDcols=vec_sum]
+
 ### save----
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out_pec[!is.na(tipo)]
@@ -742,13 +764,31 @@ ica_dt_out <- ica_dt %>%
     ,on = c("name_actv","Activ")] %>% 
   .[ica_local_div_dt
     ,on = c("name_actv" = "Nome","Activ")] 
-  
-  
+
+# soma
+vec_sum <- names(ica_dt_out)
+vec_sum <- vec_sum[!(vec_sum %in% c("name_actv","Activ"))]
+vec_sum
+ica_dt_out[,soma_pesos_complex_ativ_sim := rowSums(.SD)
+           ,.SDcols=vec_sum]
+ica_dt_out
+
+# adjust
+ica_dt_out[is.na(ica_dt_out)] <- 0
+ica_dt_out <- ica_dt_out[ativ_grupo_raw
+                         ,on = c("Activ" = "CNAE"
+                                 ,"name_actv"="Descricao")]
+ica_dt_out[is.na(ica_dt_out)] <- 0
+atv_names <- c("name_actv","Activ","Grupo","Cor")
+all_names <- names(ica_dt_out)[!(names(ica_dt_out) %in% atv_names)]
+ica_dt_out <- ica_dt_out[,.SD,.SDcols = c(atv_names,all_names)]
+
 ### save----
 googlesheets4::gs4_auth()
-googlesheets4::write_sheet(data = ica_local_dt
+googlesheets4::write_sheet(data = ica_dt_out
                            ,ss = link_gdocs
-                           ,sheet = "P_COMPLEX_ATIV") 
+                           ,sheet = "Complexidade Econômica - Atividade") 
+
 # Lista Produto ------
 rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
@@ -798,19 +838,21 @@ icp_local_dt
 icp_div_BPAR <- data.table::fread("data/complexidade/ListaProdutosDiv_BHRP.csv")
 icp_div_BSF <-  data.table::fread("data/complexidade/ListaProdutosDiv_BHSF.csv")
 icp_div_PISF <- data.table::fread("data/complexidade/ListaProdutosDiv_PISF.csv")
-#icp_div_RTP <-  data.table::fread("data/complexidade/ListaPr"
-#                                  ,encoding = "Latin-1")
+icp_div_RTP <-  data.table::fread("data/complexidade/ListaProdutosDiv_Total.csv")
 icp_div_BPAR[1]
 icp_div_BSF[1]
 icp_div_PISF[1]
+icp_div_RTP[1]
 
 
 # rbind
 icp_div_dt <- list(
+  
   icp_div_BPAR[,Regiao := NULL][,local := "bacia_BPAR"]
   , icp_div_BSF[,Regiao := NULL][,local := "bacia_BSF"]
   , icp_div_PISF[,Regiao := NULL][,local := "bacia_PISF"]
-  #, icp_div_RTP[,Regiao := NULL][,local := "RTP"]
+  , icp_div_RTP[Regiao == "Projeto",][,Regiao := NULL][,local := "RTP"]
+  
 ) %>% data.table::rbindlist(use.names = TRUE,fill = TRUE)
 icp_div_dt[, Phi := NULL]
 
@@ -836,7 +878,7 @@ icp_local_div_dt <- dcast(data = icp_local_div_dt[!is.na(Prod)]
                           , formula = Nome + Prod ~
                             paste0("classe_prod_",Tipo,"_",local)
                           , fill = 0)
-icp_local_div_dt
+icp_local_div_dt[1]
 ### merge ----
 icp_dt_out <- icp_dt %>% 
   .[,.SD[1],by = .(Prod,name_prod)] %>% 
@@ -846,9 +888,219 @@ icp_dt_out <- icp_dt %>%
   .[icp_local_div_dt
     ,on = c("name_prod" = "Nome","Prod")] 
 
-icp_dt_out
+# soma
+vec_sum <- names(icp_dt_out)
+vec_sum <- vec_sum[!(vec_sum %in% c("name_prod","Prod"))]
+icp_dt_out[,soma_pesos_complex_prod_sim  := rowSums(.SD,,na.rm = TRUE)
+           ,.SDcols=vec_sum]
+
+
 ### save----
 googlesheets4::gs4_auth()
-googlesheets4::write_sheet(data = icp_local_dt
+googlesheets4::write_sheet(data = icp_dt_out
                            ,ss = link_gdocs
-                           ,sheet = "P_COMPLEX_PROD") 
+                           ,sheet = "Complexidade Econômica - Produto") 
+
+# SELEÇÃO DAS ATIVIDADES --------
+rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
+gc(reset = TRUE)
+
+
+ica_div_BPAR <- openxlsx::read.xlsx("data/complexidade/ListaAtividadesDiv_Municipio.xlsx")
+setDT(ica_div_BPAR)
+
+ica_div_BPAR <- data.table::fread("data/complexidade/ListaAtividadesDiv_BHRP.csv")
+ica_div_BSF <-  data.table::fread("data/complexidade/ListaAtividadesDiv_BHSF.csv")
+ica_div_PISF <- data.table::fread("data/complexidade/ListaAtividadesDiv_PISF.csv")
+ica_div_RTP <-  data.table::fread("data/complexidade/ListaAtividadesDiv_Regiao.csv"
+                                  ,encoding = "Latin-1")
+ica_div_BPAR[1]
+ica_div_BSF[1]
+ica_div_PISF[1]
+ica_div_RTP[1]
+# rbind
+ica_div_dt <- list(
+  ica_div_BPAR[,Regiao := NULL][,local := "bacia_BPAR"]
+  , ica_div_BSF[,Regiao := NULL][,local := "bacia_BSF"]
+  , ica_div_PISF[,Regiao := NULL][,local := "bacia_PISF"]
+  , ica_div_RTP[,Regiao := NULL][,local := "RTP"]
+) %>% data.table::rbindlist(use.names = TRUE,fill = TRUE)
+ica_div_dt[, Phi := NULL]
+
+ica_div_dt <- ica_div_dt %>% 
+  .[,.SD,.SDcols = c("ActivBase","NomeBase","ICABase","local")] %>% 
+  .[,.SD[1],by = .(ActivBase,NomeBase,local)]
+
+## Local -----
+ica_local_div_dt <- copy(ica_div_dt) 
+ica_local_div_dt <- data.table::setorder(x = ica_local_div_dt[!is.na(NomeBase)]
+                                         ,-ICABase,local,NomeBase)
+ica_local_div_dt[,N := 1:.N,by = .(local)]
+ica_local_div_dt[local == "bacia_BSF"]
+ica_local_div_dt[,N := fifelse(N <= 5,1,0),by = .(local,NomeBase)]
+
+ica_local_div_dt <-  dcast(data = ica_local_div_dt[!is.na(local)]
+                           , formula = NomeBase + ActivBase ~
+                             paste0("top5_ativ_base_",local)
+                           , fill = 0
+                           , value.var = "N"
+)
+
+# soma
+vec_sum <- names(ica_local_div_dt)
+vec_sum <- vec_sum[!(vec_sum %in% c("NomeBase","ActivBase"))]
+vec_sum
+soma_filtros_selecao_atividades_base_sim
+ica_local_div_dt[,soma_filtros_selecao_atividades_base_sim := rowSums(.SD)
+                 ,.SDcols=vec_sum]
+
+# merge
+ativ_grupo_raw <- data.table::fread("data-raw/planilhas_basilio/Atividades.csv")
+ativ_grupo_raw[1]
+ica_local_div_dt[1]
+
+ica_local_div_dt <- ica_local_div_dt[ativ_grupo_raw
+                                     ,on = c("ActivBase" = "CNAE")
+                                     ,":=" (prod = i.Grupo
+                                            ,cod_prod = i.Cor)]
+
+ica_local_div_dt <- ica_local_div_dt[
+  ,.SD
+  ,.SDcols = c("NomeBase", "ActivBase","prod", "cod_prod",vec_sum
+               ,"soma_filtros_selecao_atividades_base_sim")]
+### save----
+googlesheets4::gs4_auth()
+googlesheets4::write_sheet(data = ica_local_div_dt
+                           ,ss = link_gdocs
+                           ,sheet = "SELEÇÃO DAS ATIVIDADES") 
+
+# SELEÇÃO DOS PRODUTOS -----
+
+rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
+gc(reset = TRUE)
+
+
+icp_div_BPAR <- data.table::fread("data/complexidade/ListaProdutosDiv_BHRP.csv")
+icp_div_BSF <-  data.table::fread("data/complexidade/ListaProdutosDiv_BHSF.csv")
+icp_div_PISF <- data.table::fread("data/complexidade/ListaProdutosDiv_PISF.csv")
+icp_div_RTP <-  data.table::fread("data/complexidade/ListaProdutosDiv_Total.csv")
+icp_div_BPAR[1]
+icp_div_BSF[1]
+icp_div_PISF[1]
+icp_div_RTP[1]
+# rbind
+icp_div_dt <- list(
+  icp_div_BPAR[,Regiao := NULL][,local := "bacia_BPAR"]
+  , icp_div_BSF[,Regiao := NULL][,local := "bacia_BSF"]
+  , icp_div_PISF[,Regiao := NULL][,local := "bacia_PISF"]
+  , icp_div_RTP[,Regiao := NULL][,local := "RTP"]
+) %>% data.table::rbindlist(use.names = TRUE,fill = TRUE)
+icp_div_dt[, Phi := NULL]
+
+icp_div_dt <- icp_div_dt %>% 
+  .[,.SD,.SDcols = c("ProdBase","NomeBase","ICPBase","local")] %>% 
+  .[,.SD[1],by = .(ProdBase,NomeBase,local)]
+
+## Local -----
+icp_local_div_dt <- copy(icp_div_dt) 
+icp_local_div_dt <- data.table::setorder(x = icp_local_div_dt[!is.na(NomeBase)]
+                                         ,-ICPBase,local,NomeBase)
+icp_local_div_dt[,N := 1:.N,by = .(local)]
+icp_local_div_dt[local == "bacia_BSF"]
+icp_local_div_dt[,N := fifelse(N <= 5,1,0),by = .(local,NomeBase)]
+
+icp_local_div_dt <-  dcast(data = icp_local_div_dt[!is.na(local)]
+                           , formula = NomeBase + ProdBase ~
+                             paste0("top5_ativ_prof_",local)
+                           , fill = 0
+                           , value.var = "N"
+)
+
+# soma
+vec_sum <- names(icp_local_div_dt)
+vec_sum <- vec_sum[!(vec_sum %in% c("NomeBase","ProdBase"))]
+vec_sum
+
+icp_local_div_dt[,soma_filtros_selecao_produtos_sim := rowSums(.SD)
+                 ,.SDcols=vec_sum]
+
+### save----
+googlesheets4::gs4_auth()
+googlesheets4::write_sheet(data = icp_local_div_dt
+                           ,ss = link_gdocs
+                           ,sheet = "SELEÇÃO DOS PRODUTOS") 
+
+# ORGANIZAÇÃO PROD ATIV - CNAE -----
+
+rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
+gc(reset = TRUE)
+
+ativ_grupo_raw <- data.table::fread("data-raw/planilhas_basilio/Atividades.csv")
+
+ativ_grupo_raw[1]
+dic_imp[1]
+
+### save----
+googlesheets4::gs4_auth()
+googlesheets4::write_sheet(data = ativ_grupo_raw
+                           ,ss = link_gdocs
+                           ,sheet = "ORG. PROD. E ATIV. - CNAE") 
+
+# ORGANIZAÇÃO PROD  - ibge -----
+
+rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
+gc(reset = TRUE)
+
+agro <- readr::read_rds("data/agro_table5457.rds"); agro[1]
+silv <- readr::read_rds("data/agro_table5930.rds"); silv[1]
+aqui <- readr::read_rds("data/agro_table3940.rds"); aqui[1]
+reb <- readr::read_rds("data/agro_table3939.rds"); reb[1]
+
+dt_rbind <- list(
+  agro[,":=" (prod = produto_das_lavouras_temporarias_e_permanentes
+              ,prod_cod = produto_das_lavouras_temporarias_e_permanentes_codigo)] %>% 
+    .[prod != "Total",] %>% 
+    .[,.SD,.SDcols = c("prod","prod_cod")] %>% 
+    .[,.SD[1], by = .(prod)]
+  
+  ,      silv[,":=" (prod = especie_florestal
+                     ,prod_cod = especie_florestal_codigo)] %>% 
+    .[prod != "Total",] %>% 
+    .[,.SD,.SDcols = c("prod","prod_cod")] %>% 
+    .[,.SD[1], by = .(prod)]
+  
+  ,      aqui[,":=" (prod = tipo_de_produto_da_aquicultura
+                     ,prod_cod = tipo_de_produto_da_aquicultura_codigo)] %>% 
+    .[prod != "Total",] %>% 
+    .[,.SD,.SDcols = c("prod","prod_cod")] %>% 
+    .[,.SD[1], by = .(prod)]
+  
+  ,      reb[,":=" (prod = tipo_de_rebanho
+                     ,prod_cod = tipo_de_rebanho_codigo)] %>% 
+    .[prod != "Total",] %>% 
+    .[,.SD,.SDcols = c("prod","prod_cod")] %>% 
+    .[,.SD[1], by = .(prod)]
+) %>% 
+  data.table::rbindlist()
+
+dt_rbind[1:5]
+
+### save----
+
+googlesheets4::gs4_auth()
+googlesheets4::write_sheet(data = dt_rbind
+                           ,ss = link_gdocs
+                           ,sheet = "ORG. PROD. E ATIV. - IBGE"
+                           ) 
+# ORGANIZAÇÃO PROD  - SH4 -----
+rm(list = ls()[!(ls() %in% c("emp_rgint_empregos_estab","link_gdocs","my_division","df_geral"))])
+gc(reset  = TRUE)
+
+
+dic_imp <- data.table::fread("data-raw/Importacao e exportacao/codigos_sh4.csv")
+### save----
+
+googlesheets4::gs4_auth()
+googlesheets4::write_sheet(data = dic_imp
+                           ,ss = link_gdocs
+                           ,sheet = "SH4") 
