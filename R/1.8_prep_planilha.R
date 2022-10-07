@@ -13,6 +13,7 @@ df_geral <- df_geral[!is.na(code_muni),]
 df_geral[mun_pisf == 1,bacia := "PISF"]
 df_geral[mun_bsf == 1,bacia := "BSF"]
 df_geral[mun_bpar == 1,bacia := "BPAR"]
+
 link_gdocs <- "https://docs.google.com/spreadsheets/d/1WbmvP0qgg6iHnu2o0H-4k0dXQ9wUX10HeBKIht7Nl5M/edit?usp=sharing"
 
 # 2) Read  ------

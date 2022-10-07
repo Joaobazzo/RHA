@@ -10,9 +10,11 @@ my_division <- function(a,b){round(100 * a / b , 2)}
 df_geral <- readr::read_rds("data/df_geral_muni.rds")
 df_geral <- df_geral[!is.na(code_muni) & regiao_total == 1,]
 df_geral[mun_pisf == 1,bacia := "PISF"]
-df_geral[mun_bsf == 1,bacia := "BSF"]
+df_geral[mun_bsf  == 1,bacia := "BSF"]
 df_geral[mun_bpar == 1,bacia := "BPAR"]
-
+df_geral[,c("mun_pisf" 
+            ,"mun_bsf"  
+            ,"mun_bpar" ) := NULL]
 #ativ_grupo_raw <- data.table::fread("data-raw/planilhas_basilio/Atividades.csv")
 
 link_gdocs <- "https://docs.google.com/spreadsheets/d/1bgs9cHwGUHu75YjdPZSgjOZ1w6kWKI0MqdE2GFwHUu4/edit?usp=sharing"
@@ -254,6 +256,9 @@ dt_out[,soma_pesos_empregos_e_remuneracoes_atividades_sim := rowSums(.SD,,na.rm 
        ,.SDcols=vec_sum]
 dt_out
 ## save----
+readr::write_rds(dt_out,"data/complexidade/complexidade_muni_export/soma_pesos_empregos_e_remuneracoes_atividades_sim.rds"
+                 ,compress = "gz")
+
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out
                            ,ss = link_gdocs
@@ -547,6 +552,9 @@ dt_out_agro[,soma_pesos_agropecuaria := rowSums(.SD,,na.rm = TRUE)
             ,.SDcols=vec_sum]
 dt_out_agro
 ### save----
+
+readr::write_rds(dt_out_agro,"data/complexidade/complexidade_muni_export/agro_ibge.rds"
+                 ,compress = "gz")
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out_agro[!is.na(produto)]
                            ,ss = link_gdocs
@@ -661,6 +669,9 @@ dt_out_pec[,soma_pesos_competitividade_produto_rural_sim := rowSums(.SD,,na.rm =
            ,.SDcols=vec_sum]
 
 ### save----
+readr::write_rds(dt_out_pec,"data/complexidade/complexidade_muni_export/agro_ibge_others.rds"
+                 ,compress = "gz")
+
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = dt_out_pec[!is.na(tipo)]
                            ,ss = link_gdocs
@@ -713,7 +724,9 @@ ica_local_dt <-  dcast(data = ica_local_dt[!is.na(local)]
                        , fill = 0
                        , value.var = "classe_ICA")
 ica_local_dt
+
 # Lista AtividadeDiv -----
+
 ica_div_BPAR <- data.table::fread("data/complexidade/ListaAtividadesDiv_BHRP.csv")
 ica_div_BSF <-  data.table::fread("data/complexidade/ListaAtividadesDiv_BHSF.csv")
 ica_div_PISF <- data.table::fread("data/complexidade/ListaAtividadesDiv_PISF.csv")
@@ -771,7 +784,7 @@ vec_sum <- vec_sum[!(vec_sum %in% c("name_actv","Activ"))]
 vec_sum
 ica_dt_out[,soma_pesos_complex_ativ_sim := rowSums(.SD)
            ,.SDcols=vec_sum]
-ica_dt_out
+
 
 # adjust
 ica_dt_out[is.na(ica_dt_out)] <- 0
@@ -784,6 +797,9 @@ all_names <- names(ica_dt_out)[!(names(ica_dt_out) %in% atv_names)]
 ica_dt_out <- ica_dt_out[,.SD,.SDcols = c(atv_names,all_names)]
 
 ### save----
+
+readr::write_rds(ica_dt_out,
+                 "data/complexidade/complexidade_muni_export/complx_ecn_ativ.rds")
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = ica_dt_out
                            ,ss = link_gdocs
@@ -794,6 +810,8 @@ rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
 
 dic_imp <- data.table::fread("data-raw/Importacao e exportacao/codigos_sh4.csv")
+
+icp_BPAR <- data.table::fread("data/complexidade/ListaProdutosDiv_Municipio.csv")
 icp_BPAR <- data.table::fread("data/complexidade/PSICP_BHRP.csv")
 icp_BSF <-  data.table::fread("data/complexidade/PSICP_BHSF.csv")
 icp_PISF <- data.table::fread("data/complexidade/PSICP_PISF.csv")
@@ -896,6 +914,8 @@ icp_dt_out[,soma_pesos_complex_prod_sim  := rowSums(.SD,,na.rm = TRUE)
 
 
 ### save----
+readr::write_rds(icp_dt_out,
+                 "data/complexidade/complexidade_muni_export/complx_ecn_prod.rds")
 googlesheets4::gs4_auth()
 googlesheets4::write_sheet(data = icp_dt_out
                            ,ss = link_gdocs
@@ -906,8 +926,7 @@ rm(list = ls()[!(ls() %in% c("link_gdocs","my_division","df_geral"))])
 gc(reset = TRUE)
 
 
-ica_div_BPAR <- openxlsx::read.xlsx("data/complexidade/ListaAtividadesDiv_Municipio.xlsx")
-setDT(ica_div_BPAR)
+# ica_div_BPAR <- data.table::fread("data/complexidade/ListaAtividadesDiv_Municipio.csv")
 
 ica_div_BPAR <- data.table::fread("data/complexidade/ListaAtividadesDiv_BHRP.csv")
 ica_div_BSF <-  data.table::fread("data/complexidade/ListaAtividadesDiv_BHSF.csv")
@@ -984,6 +1003,7 @@ icp_div_BPAR <- data.table::fread("data/complexidade/ListaProdutosDiv_BHRP.csv")
 icp_div_BSF <-  data.table::fread("data/complexidade/ListaProdutosDiv_BHSF.csv")
 icp_div_PISF <- data.table::fread("data/complexidade/ListaProdutosDiv_PISF.csv")
 icp_div_RTP <-  data.table::fread("data/complexidade/ListaProdutosDiv_Total.csv")
+
 icp_div_BPAR[1]
 icp_div_BSF[1]
 icp_div_PISF[1]
@@ -1092,6 +1112,7 @@ googlesheets4::write_sheet(data = dt_rbind
                            ,ss = link_gdocs
                            ,sheet = "ORG. PROD. E ATIV. - IBGE"
                            ) 
+
 # ORGANIZAÇÃO PROD  - SH4 -----
 rm(list = ls()[!(ls() %in% c("emp_rgint_empregos_estab","link_gdocs","my_division","df_geral"))])
 gc(reset  = TRUE)

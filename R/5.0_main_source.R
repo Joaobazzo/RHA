@@ -1,6 +1,6 @@
 # 2) function input data ----
 
-function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
+function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "5301"
   
   formato_bonitinho <- function(x) {
     diff_nchar <- nchar(x) - nchar(round(x))
@@ -17,7 +17,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   # INTRO -----
   # ..................................... ------
   ## f1 | f2 ----
-  s_name_intermediate = input_file$intermediate_region[
+  s_name_intermediate <- input_file$intermediate_region[
     code_intermediate == s_input,name_intermediate
   ][1]
   
@@ -52,7 +52,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   ## fp1 -----
   s_pop_2020_rgint = formato_bonitinho_pop(
     sum(
-      raw_pop_2020_pj[ano == "2020" ,"valor"]
+      raw_pop_2020_pj[ano == "2019" ,"valor"]
       ,na.rm = TRUE)
   )
   
@@ -225,6 +225,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   names(sq_ref) <- l1
   sq_ref
   
+
   # PIB -----
   # ..................................... ------
   ### prep ----
@@ -251,7 +252,9 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   tmp_pib_rgi <- tmp_pib_rgi[df_geral, on = c("code_muni")]
   
   s_state <- unique(tmp_pib_rgi[code_intermediate == s_input,]$name_state)
-  s_code_capital <- capitais_raw[name_state == s_state,code_muni]
+  s_state_code <- unique(tmp_pib_rgi[code_intermediate == s_input,]$code_state)
+  s_code_capital <- capitais_raw[code_state == s_state_code,code_muni]
+  s_code_capital <- unique(s_code_capital)
   
   # remove NA, such as ano == 2002
   #tmp_pib_rgi <- tmp_pib_rgi[!is.na(population)]
@@ -280,7 +283,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
         .[,local := "Estado"]
     ) %>% data.table::rbindlist()
   
-  
+
   # arruma colunas e calcula percentuais
   tmp_pib_cap_rgint <- data.table::copy(tmp_pib_rgi_bind) %>% 
     .[,{
@@ -308,7 +311,8 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
       pib_capita_string <- pib_capita_num %>% round(1) %>% format(.,dec = ",")
       
       list(
-        PIB = format(sum_pib,dec = ",")
+        #PIB = format(sum_pib,dec = ",")
+        PIB = sum_pib
         #,perc_pib = perc_pib
         ,ind = format(sum_ind,dec = ",")
         ,pp_ind = perc_ind
@@ -341,13 +345,13 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   tmp_pib_cap_rgint_muni <- data.table::copy(tmp_pib_cap_rgint)[local == "Município",]
   tmp_pib_cap_rgint <- tmp_pib_cap_rgint[local != "Município",]
   ## prep  ----
-  
-  s_pib_rgint_num <- tmp_pib_cap_rgint[local_id == s_input
+
+  s_pib_rgint_num <- tmp_pib_cap_rgint[local_id %in% s_input
                                        ,as.numeric(PIB) * 1000]
-  
+
   s_pib_estado_num <- tmp_pib_cap_rgint[local == "Estado"
                                         ,as.numeric(PIB) * 1000]
-  
+
   ## f4 -----
   s_pib_rgint_str <- data.table::fcase(
     # bilhoes
@@ -370,7 +374,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   s_pib_razao_rgint <- round(100 * s_pib_razao_rgint, 1)
   s_pib_razao_rgint <- paste0(s_pib_razao_rgint,"%")
   
-  s_pib_capita_rgint <- tmp_pib_cap_rgint[local_id == s_input
+  s_pib_capita_rgint <- tmp_pib_cap_rgint[local_id %in% s_input
                                           ,pib_capita_num]
   s_pib_capita_rgint <- format(s_pib_capita_rgint * 1000
                                , dec = ","
@@ -382,7 +386,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   ## f3-----
   
   s_pib_rgint_num <- formato_bonitinho(s_pib_rgint_num)
-  
+  s_pib_estado_num <- format(s_pib_estado_num,decimal.mark = ",")
   ## f6 ----
   
   s_pib_capita_rgint <- tmp_pib_cap_rgint[
@@ -398,7 +402,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                                   pib_cap_rgint_num < 21.288, "Média",
                                 pib_cap_rgint_num > 21.288,"Alta")
   
-  
+
   ## f9 -----
   l1 <- c("Classificação"
           ,"PIB"
@@ -471,7 +475,6 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   ## f12-----
   
   s_name_capital_estado <- tmp_pib_cap_rgint[ local == "Capital",name_local]
-  
   s_name_estado <- tmp_pib_cap_rgint[ local == "Estado",name_local]
   s_abbrev_estado <- input_file$intermediate_region %>% 
     .[name_state == s_name_estado,unique(abbrev_state)]
@@ -550,7 +553,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
     return(out)
   }
   ## f17-f28 -----
-  
+
   tmp_idhm <- data.table::copy(ivs_raw) %>% 
     .[code_intermediate == s_input,] %>% 
     .[,idhm := as.numeric(idhm)] %>% 
@@ -677,7 +680,8 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   data.table::setkeyv(x = sq_top_vab
                       ,cols = c("perc","VAB")
                       ,physical = T)
-  sq_top_vab <- sq_top_vab[,.SD[.N:(.N-5)],by = VAB]
+  Num_max <- fifelse(nrow(tmp_pib) < 5,nrow(tmp_pib),5)
+  sq_top_vab <- sq_top_vab[,.SD[.N:(.N+1-Num_max)],by = VAB]
   sq_top_vab[,perc := paste0(perc,"%")]
   sq_top_vab <- do.call(cbind,args = list(
     sq_top_vab[VAB == "pp_adm" ,2:3],
@@ -690,31 +694,39 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                           ,"VAB Serviços"    ,"%   "
                           ,"VAB Agropecuária","%  "
                           ,"VAB Indústria"   ,"% ")
+
   # Emprego -----
   # ..................................... ------
   # get files
   my_division <- function(a,b){round(100 * a / b , 2)}
   tmp_cnae <- data.table::copy(cnae_raw$raw_CNAE) %>% 
-    .[regiao_intermediaria == s_input,]
+    .[regiao_intermediaria %in% s_input,]
+  tmp_cnae_capital <- data.table::copy(cnae_raw$raw_CNAE) %>% 
+    .[codigo_municipio %in% s_code_capital,]
   tmp_all <- data.table::copy(cnae_raw$resumo)
   workCols = c("soma_remun", "soma_horas", "contagem")
-  s_bacia = unique(tmp_cnae[!is.na(bacia),bacia])
+  s_bacia = unique(tmp_cnae[!is.na(bacia),bacia])[1]
+  bacia_exists <- !is.na(s_bacia)
+  if(bacia_exists == FALSE){
+    s_bacia <- "PISF"
+  }
   
   # prep RGINT
   tmp_jobs <-  data.table::copy(tmp_cnae) %>% 
     .[,lapply(.SD,sum,na.rm = TRUE)
-      , by =.(nome_grupo,cnae20,nome_classe)
+      , by = .(nome_grupo,cnae20,nome_classe)
       , .SDcols = workCols]
   for(i in workCols){
     tmp_jobs[,paste0("pp_int_",i) := my_division(get(i),sum(get(i)))] 
   }
-  
+
   ## f34------
   sdt_jobs_total <- data.table::copy(tmp_jobs) %>% 
-    .[order(contagem,decreasing = TRUE)] %>% 
+    .[order(contagem,decreasing = TRUE),] %>% 
     .[,.SD[1:10],.SDcols = c("nome_grupo","cnae20","nome_classe","contagem","pp_int_contagem")]
   
   # quadro 1
+
   sdt_jobs_total <- list(sdt_jobs_total
                          ,data.frame(
                            nome_grupo = "Total RGINT"
@@ -725,9 +737,9 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                          )
                          ,data.frame(
                            nome_grupo = paste0(s_name_capital_estado," (Capital)")
-                           ,contagem = tmp_cnae[codigo_municipio==s_code_capital,sum(contagem)]
+                           ,contagem = tmp_cnae_capital[codigo_municipio == s_code_capital,sum(contagem)] 
                            ,pp_int_contagem = my_division(
-                             tmp_cnae[codigo_municipio==s_code_capital,sum(contagem)]
+                             tmp_cnae_capital[codigo_municipio==s_code_capital,sum(contagem)]
                              ,tmp_all[local_id == s_abbrev_estado,contagem])
                          )
                          ,data.frame(
@@ -738,7 +750,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                              ,tmp_all[local_id == "Brasil",contagem])
                          )
                          ,data.frame(
-                           nome_grupo = "BHRP"
+                           nome_grupo = paste0(s_bacia," (Bacia)")
                            , contagem = tmp_all[local_id == s_bacia,contagem]
                            ,pp_int_contagem = my_division(
                              tmp_all[local_id == s_bacia,contagem]
@@ -752,7 +764,10 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                              ,tmp_all[local_id == "Brasil",contagem])
                          )
   ) %>% data.table::rbindlist(use.names = TRUE,fill = TRUE)
-  
+
+  if(bacia_exists == FALSE){
+    sdt_jobs_total <- sdt_jobs_total[!(nome_grupo %like% "(Bacia)"),]
+  }
   sdt_jobs_total[is.na(sdt_jobs_total)] <- "-"
   
   names(sdt_jobs_total) <- c("Grupo","CNAE","Classe","Vínculos","% RGINT")
@@ -760,7 +775,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   sdt_rem_total <- data.table::copy(tmp_jobs) %>% 
     .[order(soma_remun,decreasing = TRUE)] %>% 
     .[,.SD[1:10],.SDcols = c("nome_grupo","cnae20","nome_classe","soma_remun","pp_int_soma_remun")]
-  
+
   # quadro 2
   sdt_rem_total <- list(sdt_rem_total
                         ,data.frame(
@@ -785,7 +800,7 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                             ,tmp_all[local_id == "Brasil",soma_remun])
                         )
                         ,data.frame(
-                          nome_grupo = "BHRP"
+                          nome_grupo = paste0(s_bacia," (Bacia)")
                           , soma_remun = tmp_all[local_id == s_bacia,soma_remun]
                           ,pp_int_soma_remun = my_division(
                             tmp_all[local_id == s_bacia,soma_remun]
@@ -800,13 +815,16 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
                         )
   ) %>% data.table::rbindlist(use.names = TRUE,fill = TRUE)
   
+  if(bacia_exists == FALSE){
+    sdt_rem_total <- sdt_rem_total[!(nome_grupo %like% "(Bacia)"),]
+  }
   sdt_rem_total[is.na(sdt_rem_total)] <- "-"
   
   names(sdt_rem_total) <- c("Grupo","CNAE","Classe","Remuneração","% RGINT")
   #fdt_rem_total %>% View()
   
   ### prep ------
-  
+
   fdt_num_total <- data.table::copy(tmp_cnae) %>% 
     .[
       ,{
@@ -853,15 +871,15 @@ function_rel_pib <- function(arquivo_resultado,s_input){ # s_input = "1101"
   
   # CTI ----
   # ..................................... ------
-  quadro_31 <- openxlsx::read.xlsx(
-      xlsxFile = sprintf("data/dados_maira/%s.xlsx",s_input)
-      ,sheet = "Quadro 31"
-      ,colNames = FALSE
-      ,fillMergedCells = FALSE
-  ) %>% setDT()
+  #quadro_31 <- openxlsx::read.xlsx(
+  #    xlsxFile = sprintf("data/dados_maira/%s.xlsx",s_input)
+  #    ,sheet = "Quadro 31"
+  #    ,colNames = FALSE
+  #    ,fillMergedCells = FALSE
+  #) %>% setDT()
+#
+  #quadro_31
 
-  quadro_31
-  
   # INPUT Doc-----
   # ..................................... ------
   rmarkdown::render(

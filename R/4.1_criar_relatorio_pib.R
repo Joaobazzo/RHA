@@ -22,14 +22,16 @@ muni_area <- readxl::read_xls("data-raw/AR_BR_RG_UF_RGINT_RGIM_MES_MIC_MUN_2021.
 cnae_raw <- readr::read_rds("data/CNAE_empregos.rds")
 df_geral <- readr::read_rds("data/df_geral_muni.rds")
 
+
+
 vector_unique_code <- unique(
   df_geral[regiao_total == 1,code_intermediate]
 )
+df_geral[code_intermediate == "5301"]
 
-
-lapply(seq_along(vector_unique_code)[1] # i = 1
+lapply(seq_along(vector_unique_code)# i = 55
        ,function(i){
-         
+         message(vector_unique_code[i])
          # i = 1
          # a) prepare names -----
          code_input <- vector_unique_code[i]
