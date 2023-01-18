@@ -845,6 +845,8 @@ tab <- openxlsx::read.xlsx("data-raw/FNE/FNE - 2020_VALOR_CONTRATADO.xlsx")
 
 names(tab) <- janitor::make_clean_names(names(tab))
 setDT(tab)
+tab$codigo_municipio %>% uniqueN()
+tab[1:2]
 tab$urbano_rural %>% unique()
 tab$setor %>% unique()
 tab[urbano_rural == "URBANO",]$setor %>% unique()

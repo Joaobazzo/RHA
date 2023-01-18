@@ -22,7 +22,7 @@ colToRem <- c("name_muni", "code_state","name_state"
 colToRem <- setdiff(names(df_geral),c("code_muni","regiao_total"
                                       ,"abbrev_state","bacia","code_intermediate"))
 
-link_gdocs <- "https://docs.google.com/spreadsheets/d/1WbmvP0qgg6iHnu2o0H-4k0dXQ9wUX10HeBKIht7Nl5M/edit?usp=sharing"
+link_gdocs <- "https://docs.google.com/spreadsheets/d/1HNY34U99BTnfnmq8rW0hKNgOvnVQnzGhO0MWQGHMY2Q/edit?usp=sharing"
 
 is_regiao_total <- FALSE
 if(is_regiao_total) df_geral <- df_geral[regiao_total == 1,]
@@ -944,7 +944,23 @@ dt9
 
 ## 9a - complexidade_economica  kr0-----
 
-
+dt9a <- read_rds("data/complexidade/dt_ActivK_all_regions.rds")
+dt9a <- dt9a[code_muni %in% df_geral$code_muni,]
+dt9a <- dt9a[,.SD,.SDcols = c("code_muni","Kr0")]
+dt9a[, classe_grau_div_ativ_mun_kr0 := {
+  mybreaks <- quantile(x = as.numeric(Kr0)
+                       , probs=seq(0, 1, by=0.2)
+                       , na.rm=T)
+  mybreaks <- as.numeric(mybreaks)
+  
+  cut(as.numeric(Kr0)
+      , breaks = mybreaks
+      , include.lowest= TRUE
+      , labels= c(0.25,0.25,0.5,0.75,0.75))
+}]
+dt9a[,Kr0 := NULL]
+dt9a[is.na(dt9a)] <- 0
+dt9a[,soma_pesos_grau_div_mun := classe_grau_div_ativ_mun_kr0]
 ##  10 - politica urbana -----
 
 # controle urbano
@@ -2060,6 +2076,7 @@ dt6[,code_muni := as.character(code_muni)]
 dt7[,code_muni := as.character(code_muni)]
 dt8[,code_muni := as.character(code_muni)]
 dt9[,code_muni := as.character(code_muni)]
+dt9a[,code_muni := as.character(code_muni)]
 dt10[,code_muni := as.character(code_muni)]
 dt11[,code_muni := as.character(code_muni)]
 dt12[,code_muni := as.character(code_muni)]
@@ -2096,6 +2113,7 @@ dt_competiv_muni <- df_geral[,code_muni := as.character(code_muni)] %>%
   merge.data.table(x = .,y = dt21[,(NewColtoRem) := NULL],by = "code_muni",all = TRUE) %>% 
   # COMPLEXIDADE ECONOMICA
   merge.data.table(x = .,y = dt9[,(NewColtoRem) := NULL],by = "code_muni",all = TRUE) %>% 
+  merge.data.table(x = .,y = dt9a[,(NewColtoRem) := NULL],by = "code_muni",all = TRUE) %>% 
   # EDUCACAO
   merge.data.table(x = .,y = dt7[,(NewColtoRem) := NULL],by = "code_muni",all = TRUE)  %>% 
   # CTI
@@ -2137,7 +2155,7 @@ dt_competiv_muni <- df_geral[,code_muni := as.character(code_muni)] %>%
                    ,by = "code_muni",all = TRUE) %>% 
   merge.data.table(x = .,y = dt_total_filtros_rur_urb[,(NewColtoRem) := NULL],by = "code_muni",all = TRUE)
 
-break()
+
 dt_competiv_muni <- dt_competiv_muni[,.SD,.SDcols = c(
   names(df_geral)
   # CLASSIFICACAO INDEPENDENTE 
@@ -2215,9 +2233,9 @@ dt_competiv_muni <- dt_competiv_muni[,.SD,.SDcols = c(
   , 'classe_presenca_rotas'
   , 'soma_classes_apls_e_rotas_sim'
   ### Complexidade Econômica
-  #, 'classe_grau_div_ativ_mun_kr0'
+  , 'classe_grau_div_ativ_mun_kr0'
   #, 'classe_grau_div_prod_mun_km0'
-  #, 'soma_pesos_grau_div_mun'
+  , 'soma_pesos_grau_div_mun'
   ### Educação
   , 'classe_inv_educ_infantil'
   , 'classe_inv_educ_basica'
@@ -2327,9 +2345,16 @@ dt_competiv_muni[,soma_totais_competitiv_area_rural := sum(
 ),by = .(code_muni)]
 
 dt_competiv_muni[,soma_totais_competitiv_mun := sum(
-  soma_pesos_educacao
+   total_classe_presenca_institucional
+  , total_classe_empregos_empresas
+  , total_classe_comex
+  , soma_classes_apls_e_rotas_sim
+  , soma_pesos_grau_div_mun
+  , soma_pesos_grau_div_mun
+  , soma_pesos_educacao
   , soma_pesos_cti_sim
   , soma_pesos_fne
+  , classe_presenca_de_licenciamento_ambiental
   , soma_pesos_classes_tele
   , soma_pesos_classes_san_res
   , soma_pesos_classes_ee
@@ -2359,6 +2384,7 @@ dt_competiv_muni <- dt_competiv_muni[,.SD,.SDcols = NewOrderCol]
 
 #### SAVE -----
 dt_competiv_muni <- dt_competiv_muni %>% format(.,decimal.mark = ",") %>% as.data.frame() %>% setDT()
+
 googlesheets4::write_sheet(data = dt_competiv_muni
                            ,ss = link_gdocs
                            ,sheet = "RANK_COMPETITIVIDADE") 

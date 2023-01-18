@@ -168,14 +168,31 @@ info2020 <- sidrar::info_sidra(x = 6858)
 
 info2020
 info2020$classific_category %>% names()
-info2020$variable$cod %>% as.numeric()
 
 
-VecLoop <- c(11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25
-             , 26, 27, 28, 29, 31, 32, 33, 35, 41, 42
-             , 43, 50, 51, 52, 53)
-VarLoop <- c(2372,2373)
-ClasseLoop <- c("c829","c12604","c218","c12567","c12517")
+
+
+StateCol <- c(21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 52, 53)
+muni <- geobr::read_municipality() %>% setDT() 
+muni <- muni[code_state %in% StateCol,code_muni]
+muni <- as.character(muni)
+
+info2020 <- sidrar::info_sidra(x = 6858)
+var_code <- info2020$variable$cod %>% as.numeric()
+cat_code <- c("c829","c12604","c218","c12567","c12517")
+subclasse_c12604 <- info2020$classific_category$`c12604 = Método utilizado para irrigação (12):` 
+subclasse_c12604 <- subclasse_c12604$cod
+
+api_text <- sprintf("/t/6858/n6/%s/v/%s/p/all/%s/all/%s/%s/%s/all/%s/all/%s/all"
+                    ,muni[1],var_code[1],cat_code[1],cat_code[2]
+                    ,subclasse_c12604[1],cat_code[3],cat_code[4],cat_code[5])
+dt <- get_sidra(api = "/t/6858/n6/2100154/v/2372/p/all/c829/all/c12604/118477/c218/all/c12567/all/c12517/all")
+
+
+p1 <- "https://sidra.ibge.gov.br/geratabela?format=us.csv&name=tabela6858.csv&terr=N&rank=-&query="
+p2 <- "t/6858/n6/1100015/v/2372/p/all/c829/all/c12604/118477/c218/all/c12567/all/c12517/all"
+p3 <- "/l/v,p%2Bc829%2Bc12604%2Bc218,t%2Bc12567%2Bc12517"
+myurl <- paste0(p1,p2,p3)
 
 #i = 21;j=2372;k="c218"
 popList <- lapply(VecLoop,function(i){
@@ -183,27 +200,74 @@ popList <- lapply(VecLoop,function(i){
     tmp <- lapply(ClasseLoop,function(k){
       message(sprintf("State %s | Var %s | Classe %s",i,j,k))
       idCat <- which(names(info2020$classific_category) %like% k)
+      info2020$classific_category[[idCat]]
+      info2020$classific_category[[1]]
+      info2020$classific_category[[2]]
       getCat <- info2020$classific_category[[idCat]]$cod
       getCat <- as.numeric(getCat)
-      
-      pop202 <- sidrar::get_sidra(x = 6858
-                                  , variable = c(j)
-                                  , period = "2017"
-                                  , geo = "City"
-                                  , classific = k
-                                  , category = list(getCat)
-                                  , geo.filter = list("State" = i)
-      )
-      return(data.table::as.data.table(pop202))
+      tmp <- lapply(getCat,function(l){
+        i = VecLoop[1];j = VarLoop[1];k = ClasseLoop[1]; l = getCat[1]
+        i;j;k;l
+        pop202 <- sidrar::get_sidra(x = 6858
+                                    , variable = c(j)
+                                    , period = "2017"
+                                    , geo = "City"
+                                    , classific = list(ClasseLoop[1] = 
+                                                       ,ClasseLoop[2])
+                                    #, classific = "all"
+                                    , category = list(46303,45916)
+                                    , geo.filter = list("City" = i)
+        )
+        pop202
+        pop202$`Origem da orientação técnica recebida` %>% unique()
+        return(data.table::as.data.table(pop202))
+      })
+      return(tmp)
     }) %>% data.table::rbindlist(use.names=TRUE)
     return(tmp)
   }) %>% data.table::rbindlist(use.names=TRUE)
   return(tmp)
 }) %>% data.table::rbindlist(use.names=TRUE)
 
+info2020$classific_category
+subclasse_c12604 <- info2020$classific_category$`c12604 = Método utilizado para irrigação (12):`
+subclasse_c12604 <- subclasse_c12604$cod
+/t/6858/n6/1100015/v/2372/p/all/c829/all/c12604/118477/c218/all/c12567/all/c12517/all
+/t/6858/n6/2100154/v/2372/p/all/c829/all/c12604/118477/all/c218/all/c12567/all/c12517/all
+api_text
+
+
+part1_link <- "https://sidra.ibge.gov.br/geratabela?format=us.csv&name=tabela6858.csv&terr=NCS&rank=-&query=t/6858/n6/"
+part2_link <- "1100015/v/2372/p/all/c829/all/c12604/all/c218/all/c12567/all/c12517/all/l/v"
+part2_link <- "1100015/v/2372/p/all/c829/all/l/v"
+part3_link <- ",p%2Bc829%2Bc12604%2Bc218,t%2Bc12567%2Bc12517&measurecol=true"
+part3_link <- ",p%2Bc829&measurecol=true"
+full_link <- paste0(part1_link,part2_link,part3_link)
+download.file(url = full_link,destfile = "data-raw/cities_joao_irrig/raw/1100015.csv")
+dt <- fread("data-raw/cities_joao_irrig/raw/1100015.csv",skip = 6)
+dt
+
+get_sidra(api = "/t/6858/n6/1100015/v/2372/p/all/c829/allxt/c12604/allxt/c218/allxt/c12567/allxt/c12517/allxt")
+get_sidra(api = "/t/5938/n3/all/v/37/p/last%201/d/v37%200")
 
 names(popList) <- janitor::make_clean_names(names(popList))
 
 
+
+
 readr::write_rds(popList,"data/agro_table6858.rds",compress = "gz")
 # end-----
+
+setDT(pop202)
+names(pop202) <- janitor::make_clean_names(names(pop202))
+pop202$grupos_de_atividade_economica %>% unique()
+pop202$origem_da_orientacao_tecnica_recebida %>% unique()
+pop202[grupos_de_atividade_economica != "Total" & 
+         origem_da_orientacao_tecnica_recebida != "Total"]
+
+get_sidra(1378,
+          variable = 93,
+          geo = c("State","City"),
+          geo.filter = list("Region" = 3, "Region" = 3),
+          classific = c("c1"),
+          category = list(1))
